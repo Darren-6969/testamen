@@ -14,7 +14,7 @@ export default function ObituaryPage() {
   const [reloadKey, setReloadKey] = useState(0);
 
   const handlePreview = (row: Obituary) => {
-    router.push(`/module/obituary/${row.mf_id}`);
+    router.push(`/module/obituary/${row.id}`);
   };
 
   return (

@@ -48,3 +48,39 @@ exports.getObituary= async (req, res, next) => {
   }
 
 };
+
+/**
+ * GET /api/obituary/:id
+ * Fetch a single obituary record by its primary key (mt_obituary.id).
+ *
+ * NOTE: uses `id`, not `mf_id` — mf_id is the creator/account id and is
+ * shared across every obituary that account has created, so it is not a
+ * valid per-record lookup key (confirmed against real data in the backup).
+ */
+exports.getObituaryById = async (req, res, next) => {
+  try {
+    const db = getConnection(process.env.DB_TYPE);
+    const { id } = req.params;
+
+    const query = `SELECT * FROM mt_obituary WHERE id = $1 LIMIT 1`;
+    const rows = await runQuery(db, query, [id]);
+
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'Obituary not found',
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: rows[0],
+    });
+  } catch (err) {
+    console.error('getObituaryById error:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve obituary',
+    });
+  }
+};

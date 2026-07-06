@@ -40,17 +40,13 @@ exports.deleteFeedback = async (req, res) => {
     const db = getConnection(process.env.DB_TYPE);
     const { id } = req.params;
 
-    console.log("DELETE REQUEST ID:", id);
-
     const query = `
       UPDATE mt_feedback
       SET is_show = false
-      WHERE number_list = ${Number(id)}
+      WHERE number_list = $1
     `;
 
-    const result = await runQuery(db, query);
-
-    console.log("DELETE RESULT:", result);
+    await runQuery(db, query, [String(id)]);
 
     return res.json({
       success: true,
@@ -62,6 +58,69 @@ exports.deleteFeedback = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: error.message,
+    });
+  }
+};
+
+/**
+ * CREATE FEEDBACK
+ */
+exports.createFeedback = async (req, res) => {
+  try {
+    const db = getConnection(process.env.DB_TYPE);
+    const { name, email, message } = req.body || {};
+
+    if (!name || !String(name).trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name is required',
+      });
+    }
+
+    if (!message || !String(message).trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Message is required',
+      });
+    }
+
+    const insertQuery = `
+      INSERT INTO mt_feedback (name, email, message, date, "time", show, is_show)
+      VALUES ($1, $2, $3, CURRENT_DATE, CURRENT_TIME, TRUE, TRUE)
+      RETURNING id
+    `;
+
+    const rows = await runQuery(db, insertQuery, [
+      String(name).trim(),
+      email ? String(email).trim() : null,
+      String(message).trim(),
+    ]);
+
+    const newId = rows[0].id;
+
+    // number_list mirrors id as text in the existing data, so keep new rows consistent
+    await runQuery(
+      db,
+      `UPDATE mt_feedback SET number_list = $1 WHERE id = $2`,
+      [String(newId), newId]
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'Feedback created successfully',
+      data: {
+        id: newId,
+        number_list: String(newId),
+        name: String(name).trim(),
+        email: email ? String(email).trim() : null,
+        message: String(message).trim(),
+      },
+    });
+  } catch (error) {
+    console.error('CREATE FEEDBACK ERROR:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to create feedback',
     });
   }
 };
