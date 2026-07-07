@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { verifyToken } = require('../middleware/authMiddleware');
 
 const {
   getPublicPrayers,
@@ -12,10 +13,10 @@ const {
 /**
  * Public Prayer Routes
  */
-router.get('/', getPublicPrayers);
-router.get('/:id', getPublicPrayerById);
-router.post('/', createPublicPrayer);
-router.put('/:id', updatePublicPrayer);
-router.delete('/:id', deletePublicPrayer);
+router.get('/', verifyToken, getPublicPrayers);
+router.get('/:id', verifyToken, getPublicPrayerById);
+router.post('/', verifyToken, createPublicPrayer);
+router.put('/:id', verifyToken, updatePublicPrayer);
+router.delete('/:id', verifyToken, deletePublicPrayer);
 
 module.exports = router;

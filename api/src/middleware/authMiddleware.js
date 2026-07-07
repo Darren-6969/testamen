@@ -4,12 +4,12 @@ const verifyToken = (req, res, next) => {
   let token = null;
 
   // ✅ 1. Check HTTP-only cookie
-  if (req.cookies && req.cookies.token) {
-    token = req.cookies.token;
+  if (req.cookies) {
+    token = req.cookies.token || req.cookies.access_token || req.cookies.auth_token || null;
   }
 
   // ✅ 2. If no cookie, check Authorization header
-  else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+  if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
     token = req.headers.authorization.split(' ')[1];
   }
 

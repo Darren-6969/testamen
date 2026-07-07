@@ -53,7 +53,8 @@ const app = express();
           origin.includes(frontendHost) ||
           origin.includes(frontendHost2) ||
           origin.includes('192.168.2.100') ||
-          origin.includes('192.168.2.120')
+          origin.includes('192.168.2.120')||
+          origin.includes('192.168.2.10')
         ) {
           return callback(null, true);
         }

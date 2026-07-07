@@ -15,6 +15,7 @@ const getPublicPrayers = async (req, res) => {
         email,
         created_date
       FROM public.mt_public_prayer
+      WHERE deleted_at IS NULL
       ORDER BY id ASC
     `;
 
@@ -52,7 +53,7 @@ const getPublicPrayerById = async (req, res) => {
         email,
         created_date
       FROM public.mt_public_prayer
-      WHERE id = $1
+      WHERE id = $1 AND deleted_at IS NULL
       LIMIT 1
     `;
 
@@ -162,7 +163,7 @@ const updatePublicPrayer = async (req, res) => {
       SET
         message = $1,
         email = $2
-      WHERE id = $3
+      WHERE id = $3 AND deleted_at IS NULL
       RETURNING
         id,
         message,
@@ -209,8 +210,9 @@ const deletePublicPrayer = async (req, res) => {
 
   try {
     const sql = `
-      DELETE FROM public.mt_public_prayer
-      WHERE id = $1
+      UPDATE public.mt_public_prayer
+      SET deleted_at = NOW()
+      WHERE id = $1 AND deleted_at IS NULL
       RETURNING id
     `;
 

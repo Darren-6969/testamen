@@ -72,6 +72,8 @@ const login = async (req, res) => {
   const usernameOrEmail = String(req.body?.username || '').trim();
   const password = String(req.body?.password || '');
   const rememberMe = normalizeRememberMe(req.body?.rememberMe);
+  const portal = req.body?.portal === 'customer' ? 'customer' : 'admin';
+  const expectedStatusId = portal === 'customer' ? 2 : 1;
 
   if (!usernameOrEmail || !password) {
     return res.status(400).json({ message: 'Username or email and password are required.' });
@@ -80,15 +82,15 @@ const login = async (req, res) => {
   try {
     let rows = await runQuery(
       db,
-      'SELECT id, username, password, email, name, role_id, acc_status FROM users WHERE username = $1 AND status_id = 1',
-      [usernameOrEmail]
+      'SELECT id, username, password, email, name, role_id, acc_status, status_id FROM users WHERE username = $1 AND status_id = $2',
+      [usernameOrEmail, expectedStatusId]
     );
 
     if (!rows.length) {
       rows = await runQuery(
         db,
-        'SELECT id, username, password, email, name, role_id, acc_status FROM users WHERE email = $1 AND status_id = 1',
-        [usernameOrEmail]
+        'SELECT id, username, password, email, name, role_id, acc_status, status_id FROM users WHERE email = $1 AND status_id = $2',
+        [usernameOrEmail, expectedStatusId]
       );
     }
 
@@ -120,6 +122,8 @@ const login = async (req, res) => {
       userId: user.id,
       username: user.username,
       roleId: user.role_id,
+      statusId: user.status_id,
+      portal,
       rememberMe: sessionConfig.rememberMe,
     };
 
@@ -132,6 +136,7 @@ const login = async (req, res) => {
       .cookie('refreshToken', refreshToken, getCookieOptions({ maxAgeMs: sessionConfig.refreshCookieMaxAgeMs }))
       .json({
         accessToken,
+        refreshToken,
         rememberMe: sessionConfig.rememberMe,
         user: {
           id: user.id,
@@ -139,6 +144,8 @@ const login = async (req, res) => {
           email: user.email,
           name: user.name,
           roleId: user.role_id,
+          statusId: user.status_id,
+          portal,
         }
       });
   } catch (err) {
