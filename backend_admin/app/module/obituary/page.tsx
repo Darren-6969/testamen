@@ -14,11 +14,7 @@ export default function ObituaryPage() {
   const [reloadKey, setReloadKey] = useState(0);
 
   const handlePreview = (row: Obituary) => {
-    router.push(`/module/obituary/${row.mf_id}`);
-  };
-
-  const handleView = (id: number) => {
-    router.push(`/module/obituary/${id}`);
+    router.push(`/module/obituary/${row.id}`);
   };
 
   return (
@@ -33,7 +29,7 @@ export default function ObituaryPage() {
       <GenericTablePage
         key={reloadKey}
         fetchData={fetchObituaries}
-        columns={obituaryColumns(handlePreview, handleView)}
+        columns={obituaryColumns(handlePreview)}
         config={{
           tableType: 'columnSearch',
           pageSize: 10,

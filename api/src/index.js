@@ -52,7 +52,7 @@ const app = express();
           origin.includes('localhost') ||
           origin.includes(frontendHost) ||
           origin.includes(frontendHost2) ||
-          origin.includes('192.168.2.100') ||
+          origin.includes('192.168.2.8') ||
           origin.includes('192.168.2.120')||
           origin.includes('192.168.2.10')
         ) {
@@ -80,6 +80,10 @@ const app = express();
       express.static(path.join(process.cwd(), 'uploads'))
     );
 
+    app.use(
+      '/api/uploads/obituary',
+      express.static(path.join(process.cwd(), 'uploads', 'obituary'))
+    );
 
     /* =====================================================
        5️⃣ Health check
@@ -122,6 +126,10 @@ const app = express();
     // obituary
     const obituaryRoutes = require('./routes/obituary');
     app.use('/api/obituary/', obituaryRoutes);
+
+    // customer dashboard
+    const customerDashboardRoutes = require('./routes/customerDashboard');   
+    app.use('/api/customer-dashboard', customerDashboardRoutes);             
 
     // feedback
     const feedbackRoutes = require('./routes/feedback');

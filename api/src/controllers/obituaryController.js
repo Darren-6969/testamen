@@ -1,61 +1,270 @@
-// controllers/settingController.js
+// controllers/obituaryController.js
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
+const { buildObituaryHtml, THEME_CONFIG } = require('../utils/obituaryTemplates');
+
 const { getConnection, runQuery } = require('../db/connectionManager');
 const { hashPassword, comparePassword } = require('../utils/hashUtils');
 
+// Singular 'obituary' folder, consistent with the template + static mount.
+const OB_IMAGE_DIR = path.join(__dirname, '..', '..', 'uploads', 'obituary', 'images');
+const OB_PDF_DIR   = path.join(__dirname, '..', '..', 'uploads', 'obituary', 'pdf');
 
-exports.getObituary= async (req, res, next) => {
+const ensureDir = (p) => { if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true }); };
+ensureDir(OB_IMAGE_DIR);
+ensureDir(OB_PDF_DIR);
+
+const sanitize = (name) =>
+  name.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9.\-_]/g, '').toLowerCase();
+
+const obituaryImageStorage = multer.diskStorage({
+  destination: (req, file, cb) => { ensureDir(OB_IMAGE_DIR); cb(null, OB_IMAGE_DIR); },
+  filename: (req, file, cb) => cb(null, `${Date.now()}-${sanitize(file.originalname)}`),
+});
+
+const obituaryImageFilter = (req, file, cb) => {
+  const ok = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+  return ok.includes(file.mimetype)
+    ? cb(null, true)
+    : cb(new Error('Only image files are allowed'), false);
+};
+
+// Exported so the route can use it as middleware: upload.single('image')
+exports.obituaryImageUpload = multer({
+  storage: obituaryImageStorage,
+  fileFilter: obituaryImageFilter,
+  limits: { fileSize: 8 * 1024 * 1024 },
+});
+
+/**
+ * POST /api/obituary/upload-image
+ * multipart/form-data, field name: "image"
+ */
+exports.uploadObituaryImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No image uploaded' });
+    }
+    const filename = req.file.filename;
+    return res.json({
+      success: true,
+      filename,
+      url: `/api/uploads/obituary/images/${filename}`,
+    });
+  } catch (err) {
+    console.error('uploadObituaryImage error:', err);
+    return res.status(500).json({ success: false, message: 'Image upload failed' });
+  }
+};
+
+/**
+ * GET /api/obituary/by-memorial/:memorialId
+ * Loads the obituary for a memorial into the editor (null if none yet).
+ */
+exports.getObituaryByMemorial = async (req, res) => {
+  try {
+    const db = getConnection(process.env.DB_TYPE);
+    const { memorialId } = req.params;
+    const query = `SELECT * FROM mt_obituary WHERE memorial_id = $1 LIMIT 1`;
+    const rows = await runQuery(db, query, [memorialId]);
+    return res.json({ success: true, data: rows[0] || null });
+  } catch (err) {
+    console.error('getObituaryByMemorial error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to retrieve obituary' });
+  }
+};
+
+// Whitelisted, DB-backed obituary fields (respecting the varchar(255) limits).
+function pickObituaryFields(body) {
+  return {
+    md_content: body.md_content ?? null,
+    mf_img: body.mf_img ?? null,
+    mf_fullname: body.mf_fullname ?? null,
+    mf_born: body.mf_born || null,
+    mf_pass_date: body.mf_pass_date || null,
+    'mf-born_location': body.mf_born_location ?? null,
+    mf_pass_location: body.mf_pass_location ?? null,
+    mf_quote: body.mf_quote ?? null,
+    mf_wake_dtl_til: body.mf_wake_dtl_til ?? null,
+    mf_wake_dtl_add: body.mf_wake_dtl_add ?? null,
+    mf_cortehe_on: body.mf_cortehe_on || null,
+    mf_location_funeral: body.mf_location_funeral ?? null,
+    mf_further_dtl: body.mf_further_dtl ?? null,
+    mf_further_dtl2: body.mf_further_dtl2 ?? null,
+    mf_theme: body.mf_theme || 'd1',
+  };
+}
+
+/**
+ * POST /api/obituary/save
+ * Upsert (by memorial_id) the obituary for the active memorial.
+ */
+exports.saveObituary = async (req, res) => {
+  try {
+    const db = getConnection(process.env.DB_TYPE);
+    const memorialId = req.body.memorialId;
+    if (!memorialId) {
+      return res.status(400).json({ success: false, message: 'memorialId is required' });
+    }
+
+    const fields = pickObituaryFields(req.body);
+    const createBy = String(req.user.userId || '').slice(0, 10); // create_by is varchar(10)
+
+    const existing = await runQuery(
+      db, `SELECT id FROM mt_obituary WHERE memorial_id = $1 LIMIT 1`, [memorialId]
+    );
+
+    if (existing.length > 0) {
+      // UPDATE
+      const cols = Object.keys(fields);
+      const setClause = cols.map((c, i) => `"${c}" = $${i + 1}`).join(', ');
+      const values = cols.map((c) => fields[c]);
+      values.push(memorialId);
+      const updateSql = `UPDATE mt_obituary SET ${setClause} WHERE memorial_id = $${cols.length + 1} RETURNING *`;
+      const rows = await runQuery(db, updateSql, values);
+      return res.json({ success: true, data: rows[0], mode: 'updated' });
+    }
+
+    // INSERT (id auto-fills via sequence added in add_obituary_id_sequence.sql)
+    const insertFields = {
+      ...fields,
+      memorial_id: memorialId,
+      number_list: memorialId,
+      create_by: createBy,
+      create_date: new Date().toISOString().slice(0, 10),
+    };
+    const cols = Object.keys(insertFields);
+    const placeholders = cols.map((_, i) => `$${i + 1}`).join(', ');
+    const quotedCols = cols.map((c) => `"${c}"`).join(', ');
+    const values = cols.map((c) => insertFields[c]);
+    const insertSql = `INSERT INTO mt_obituary (${quotedCols}) VALUES (${placeholders}) RETURNING *`;
+    const rows = await runQuery(db, insertSql, values);
+    return res.json({ success: true, data: rows[0], mode: 'created' });
+  } catch (err) {
+    console.error('saveObituary error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to save obituary' });
+  }
+};
+
+/**
+ * POST /api/obituary/generate-pdf/:memorialId
+ * Renders the saved obituary to a PDF with a STABLE filename
+ * (<name>_obituary_<memorialId>.pdf) so re-saving OVERWRITES the same file
+ * instead of piling up new PDFs. If the name changed, the old file is removed.
+ */
+exports.generateObituaryPdf = async (req, res) => {
+  let browser;
+  try {
+    const db = getConnection(process.env.DB_TYPE);
+    const { memorialId } = req.params;
+
+    const rows = await runQuery(
+      db, `SELECT * FROM mt_obituary WHERE memorial_id = $1 LIMIT 1`, [memorialId]
+    );
+    if (!rows.length) {
+      return res.status(404).json({ success: false, message: 'Save the obituary before generating a PDF' });
+    }
+    const obituary = rows[0];
+
+    const portraitAbsPath = obituary.mf_img
+      ? path.join(OB_IMAGE_DIR, obituary.mf_img)
+      : null;
+
+    const html = buildObituaryHtml(obituary, { portraitAbsPath });
+
+    // Puppeteer is required lazily so the rest of the API still boots if it
+    // isn't installed yet. Run:  npm install puppeteer  in /api
+    let puppeteer;
     try {
-    // Extract requested fields
+      puppeteer = require('puppeteer');
+    } catch (e) {
+      return res.status(500).json({
+        success: false,
+        message: 'PDF engine not installed. Run `npm install puppeteer` in the api folder.',
+      });
+    }
 
-    //fields : {'code_no','first_name'}
+    // Stable filename: <name>_obituary_<memorialId>.pdf
+    const safeName = sanitize(obituary.mf_fullname || 'obituary');
+    const pdfName = `${safeName}_obituary_${memorialId}.pdf`;
+    const pdfPath = path.join(OB_PDF_DIR, pdfName);
+
+    // If the name changed, remove the previous (differently-named) file.
+    if (obituary.pdf_name && obituary.pdf_name !== pdfName) {
+      const oldPath = path.join(OB_PDF_DIR, obituary.pdf_name);
+      try { if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath); } catch (_) {}
+    }
+
+    // Orientation per theme (portrait for d1/d2, landscape for d3/d4).
+    const orientation = (THEME_CONFIG[obituary.mf_theme] || THEME_CONFIG.d1).orientation;
+
+    browser = await puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    await page.pdf({
+      path: pdfPath,
+      format: 'A4',
+      printBackground: true,
+      landscape: orientation === 'landscape',
+    });
+    await browser.close();
+    browser = null;
+
+    await runQuery(
+      db, `UPDATE mt_obituary SET pdf_name = $1 WHERE memorial_id = $2`, [pdfName, memorialId]
+    );
+
+    return res.json({
+      success: true,
+      pdfName,
+      url: `/api/uploads/obituary/pdf/${pdfName}`,
+    });
+  } catch (err) {
+    console.error('generateObituaryPdf error:', err);
+    if (browser) { try { await browser.close(); } catch (_) {} }
+    return res.status(500).json({ success: false, message: 'Failed to generate PDF' });
+  }
+};
+
+/**
+ * GET /api/obituary/list
+ * (Existing) Fetch obituaries, optionally a subset of fields.
+ */
+exports.getObituary = async (req, res, next) => {
+  try {
     const { fields } = req.body || {};
     let fieldList;
 
     if (Array.isArray(fields) && fields.length > 0) {
-      // Prevent SQL injection by sanitizing column names:
-      // - allow letters, numbers, underscore, dot, and space (for aliases)
       fieldList = fields
-        .map(f => f.replace(/[^a-zA-Z0-9_\. ]/g, ''))
+        .map((f) => f.replace(/[^a-zA-Z0-9_\. ]/g, ''))
         .join(', ');
     }
 
-    // Default query (all columns + join with user_role)
     const defaultQuery = `SELECT * FROM mt_obituary `;
-
-    // Query with selected fields if provided
     const queryWithCond = `SELECT ${fieldList} FROM mt_obituary`;
 
-    // ------------------------------------------------------------------------
-    // Run Query
-    // ------------------------------------------------------------------------
     try {
-      const db = getConnection(process.env.DB_TYPE); // e.g. "mysql" or "postgres"
+      const db = getConnection(process.env.DB_TYPE);
       const query = fieldList ? queryWithCond : defaultQuery;
-      let rows = await runQuery(db, query);
+      const rows = await runQuery(db, query);
       return res.json(rows);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Failed to retrieve results' });
+      console.error(error);
+      return res.status(500).json({ message: 'Failed to retrieve results' });
     }
-
-
-    // ------------------------------------------------------------------------
-    // No Database Configured
-    // ------------------------------------------------------------------------
-    return res.status(500).json({ error: 'No database configured.' });
   } catch (err) {
     next(err);
   }
-
 };
 
 /**
  * GET /api/obituary/:id
  * Fetch a single obituary record by its primary key (mt_obituary.id).
- *
- * NOTE: uses `id`, not `mf_id` — mf_id is the creator/account id and is
- * shared across every obituary that account has created, so it is not a
- * valid per-record lookup key (confirmed against real data in the backup).
  */
 exports.getObituaryById = async (req, res, next) => {
   try {
@@ -66,21 +275,12 @@ exports.getObituaryById = async (req, res, next) => {
     const rows = await runQuery(db, query, [id]);
 
     if (!rows.length) {
-      return res.status(404).json({
-        success: false,
-        message: 'Obituary not found',
-      });
+      return res.status(404).json({ success: false, message: 'Obituary not found' });
     }
 
-    return res.json({
-      success: true,
-      data: rows[0],
-    });
+    return res.json({ success: true, data: rows[0] });
   } catch (err) {
     console.error('getObituaryById error:', err);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve obituary',
-    });
+    return res.status(500).json({ success: false, message: 'Failed to retrieve obituary' });
   }
 };

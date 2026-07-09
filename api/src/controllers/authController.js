@@ -80,30 +80,77 @@ const login = async (req, res) => {
   }
 
   try {
-    let rows = await runQuery(
-      db,
-      'SELECT id, username, password, email, name, role_id, acc_status, status_id FROM users WHERE username = $1 AND status_id = $2',
-      [usernameOrEmail, expectedStatusId]
-    );
+    let user;
 
-    if (!rows.length) {
-      rows = await runQuery(
+    if (portal === 'customer') {
+      // Customers authenticate against mt_user_account (the legacy client table).
+      // code_no is the key we scope a customer's memorials by across the app.
+      let rows = await runQuery(
         db,
-        'SELECT id, username, password, email, name, role_id, acc_status, status_id FROM users WHERE email = $1 AND status_id = $2',
+        `SELECT id, username, password, email, code_no, number_list, is_active, status
+           FROM mt_user_account WHERE username = $1`,
+        [usernameOrEmail]
+      );
+      if (!rows.length) {
+        rows = await runQuery(
+          db,
+          `SELECT id, username, password, email, code_no, number_list, is_active, status
+             FROM mt_user_account WHERE email = $1`,
+          [usernameOrEmail]
+        );
+      }
+      if (!rows.length) {
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
+
+      const acct = rows[0];
+
+      // mt_user_account rows have null is_active/status in the legacy data,
+      // so treat "missing" as active; only an explicit inactive value blocks login.
+      const activeVal = String(acct.is_active ?? acct.status ?? '').toLowerCase();
+      const explicitlyInactive = ['0', 'false', 'inactive', 'no', 'disabled'].includes(activeVal);
+      if (explicitlyInactive) {
+        return res.status(403).json({
+          message: 'Your account is not active. Please contact the administrator.',
+        });
+      }
+
+      // Normalise to the same shape the rest of login expects below.
+      user = {
+        id: acct.id,
+        username: acct.username,
+        password: acct.password,
+        email: acct.email,
+        name: acct.username,
+        role_id: null,
+        status_id: expectedStatusId,
+        acc_status: 'Active',
+        number_list: acct.number_list,
+        code_no: acct.code_no,
+      };
+    } else {
+      // Admin — unchanged: authenticate against users.
+      let rows = await runQuery(
+        db,
+        'SELECT id, username, password, email, name, role_id, acc_status, status_id FROM users WHERE username = $1 AND status_id = $2',
         [usernameOrEmail, expectedStatusId]
       );
-    }
-
-    if (!rows.length) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-
-    const user = rows[0];
-
-    if (user.acc_status !== 'Active') {
-      return res.status(403).json({
-        message: 'Your account is not active. Please contact the administrator.'
-      });
+      if (!rows.length) {
+        rows = await runQuery(
+          db,
+          'SELECT id, username, password, email, name, role_id, acc_status, status_id FROM users WHERE email = $1 AND status_id = $2',
+          [usernameOrEmail, expectedStatusId]
+        );
+      }
+      if (!rows.length) {
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
+      user = rows[0];
+      if (user.acc_status !== 'Active') {
+        return res.status(403).json({
+          message: 'Your account is not active. Please contact the administrator.',
+        });
+      }
     }
 
     const match = await comparePassword(password, user.password);
@@ -111,11 +158,14 @@ const login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    await runQuery(
-      db,
-      'UPDATE users SET last_login = NOW() WHERE id = $1',
-      [user.id]
-    );
+    // Only the users table has a last_login column; skip it for customers.
+    if (portal !== 'customer') {
+      await runQuery(
+        db,
+        'UPDATE users SET last_login = NOW() WHERE id = $1',
+        [user.id]
+      );
+    }
 
     const sessionConfig = getLoginSessionConfig(rememberMe);
     const tokenPayload = {
@@ -125,6 +175,7 @@ const login = async (req, res) => {
       statusId: user.status_id,
       portal,
       rememberMe: sessionConfig.rememberMe,
+      codeNo: user.code_no ?? null,
     };
 
     const accessToken = generateAccessToken(tokenPayload, sessionConfig.accessTokenExpiry);
@@ -280,6 +331,9 @@ const refreshToken = async (req, res) => {
       username: decoded.username,
       roleId: decoded.roleId,
       rememberMe: sessionConfig.rememberMe,
+      portal: decoded.portal,
+      statusId: decoded.statusId,
+      codeNo: decoded.codeNo ?? null,
     };
     const accessToken = generateAccessToken(payload, sessionConfig.accessTokenExpiry);
 

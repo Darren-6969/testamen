@@ -1,16 +1,16 @@
 import {
-  FileText,
   LayoutDashboard,
-  ReceiptText,
+  LayoutGrid,
+  FileText,
+  HandHeart,
   Settings,
-  User,
 } from 'lucide-react';
 
 export type AllowedIcons =
   | typeof LayoutDashboard
-  | typeof User
-  | typeof ReceiptText
+  | typeof LayoutGrid
   | typeof FileText
+  | typeof HandHeart
   | typeof Settings;
 
 export interface SidebarItem {
@@ -26,19 +26,19 @@ const CUSTOMER_SIDEBAR_ITEMS: SidebarItem[] = [
     icon: LayoutDashboard,
   },
   {
-    label: 'My Profile',
-    href: '/module/customer-profile',
-    icon: User,
-  },
-  {
-    label: 'Billing',
-    href: '/module/billing',
-    icon: ReceiptText,
+    label: 'Admin',
+    href: '/module/admin',
+    icon: LayoutGrid,
   },
   {
     label: 'Obituary',
     href: '/module/obituary',
     icon: FileText,
+  },
+  {
+    label: 'Love Giving',
+    href: '/module/love-giving',
+    icon: HandHeart,
   },
   {
     label: 'Settings',

@@ -1283,53 +1283,22 @@ exports.getMyCustomerProfile = async (req, res, next) => {
     const db = getConnection(process.env.DB_TYPE);
 
     const query = `
-      SELECT 
-        u.id,
-        u.name,
-        u.email,
-        u.username,
-        u.acc_status AS status,
-        ur.role_name AS role,
-        c.contact_no AS phone,
-        c.application_type,
-        c.address AS company_address,
-        c.city AS company_city,
-        c.postcode AS company_postcode, 
-        c.registration_num,
-        c.fax_no AS company_fax,
-        c.admin_title,
-        c.admin_name, 
-        c.admin_address,
-        c.admin_city,
-        c.admin_postcode,
-        c.admin_email,
-        c.admin_contact,
-        c.admin_fax,
-        p.package_name, 
-        c.service_length,
-        c.signatory_name,
-        c.signatory_designation,
-        c.signatory_icnum,
-        c.form_d_a,
-        c.form_d_b,
-        c.form_9_49,
-        c.form_13_49,
-        c.form_79_80_83,
-        c.file_latestbill,
-        c.file_other,
-        c.customer_code
-      FROM users u
-      LEFT JOIN user_role ur ON u.role_id = ur.id
-      LEFT JOIN customer c ON c.user_id = u.id
-      LEFT JOIN package p ON p.id = c.package
-      WHERE u.id = $1
-      LIMIT 1
-    `;
-
-    const rows = await runQuery(db, query, [userId]);
-
-    if (!rows?.length) return res.status(404).json({ message: 'Customer not found' });
-    return res.json(rows[0]);
+          SELECT 
+            id, 
+            username AS name, 
+            username, 
+            email, 
+            code_no,
+            number_list, 
+            phone_number AS phone, 
+            status
+          FROM mt_user_account
+          WHERE id = $1
+          LIMIT 1
+        `;
+        const rows = await runQuery(db, query, [userId]);
+        if (!rows?.length) return res.status(404).json({ message: 'Customer not found' });
+        return res.json(rows[0]);
   } catch (err) {
     console.error('Error fetching my customer profile:', err);
     next(err);
