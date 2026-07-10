@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { Feather, Upload, Eye, Lock, Loader2, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { useActiveMemorial } from '@/app/context/ActiveMemorialContext';
+import PageHeader from '@/components/header/PageHeader';
 import {
   ObituaryRecord,
   EMPTY_OBITUARY,
@@ -146,18 +147,13 @@ export default function ObituaryEditorPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2">
-          <Feather className="w-5 h-5 text-[#c3195d]" />
-          <div>
-            <h1 className="text-xl font-semibold text-[#c3195d]">Obituary Editor</h1>
-            <p className="text-xs text-neutral-500">
-              {activeMemorial ? `Editing obituary for ${activeMemorial.name}` : 'Edit and generate the obituary'}
-            </p>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen">
+      <PageHeader
+        icon={<Feather className="h-6 w-6" />}
+        subtitle={activeMemorial ? `Editing obituary for ${activeMemorial.name}` : 'Edit and generate the obituary'}
+      >
+        Obituary
+      </PageHeader>
 
       {loading ? (
         <div className="bg-white rounded-xl border border-neutral-200 h-96 animate-pulse" />

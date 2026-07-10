@@ -16,6 +16,9 @@ const CUSTOMER_PAGE_PREFIXES = [
   "/module/customer-profile",
   "/module/billing",
   "/module/obituary",
+  "/module/love-giving",
+  "/module/memorials",
+  "/module/admin",
   "/invoice",
 ];
 

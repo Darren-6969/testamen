@@ -127,6 +127,14 @@ const app = express();
     const obituaryRoutes = require('./routes/obituary');
     app.use('/api/obituary/', obituaryRoutes);
 
+    // love-giving
+    const loveGivingRoutes = require('./routes/loveGiving');
+    app.use('/api/love-giving/', loveGivingRoutes);
+
+    // memorials
+    const memorialRoutes = require('./routes/memorial');
+    app.use('/api/memorials', memorialRoutes);
+
     // customer dashboard
     const customerDashboardRoutes = require('./routes/customerDashboard');   
     app.use('/api/customer-dashboard', customerDashboardRoutes);             

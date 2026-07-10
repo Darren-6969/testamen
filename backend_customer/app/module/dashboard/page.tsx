@@ -72,7 +72,7 @@ export default function DashboardPage() {
   const latestActivityDate = data?.activity[0]?.date ?? null;
 
   return (
-    <div className="min-h-screen bg-neutral-50 text-neutral-800">
+    <div className="min-h-screen text-neutral-800">
       {/* Header */}
       <div className="bg-white border-b border-neutral-200">
         <div className="max-w-7xl mx-auto px-8 pb-5">
