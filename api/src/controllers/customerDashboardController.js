@@ -18,8 +18,8 @@ exports.getOverview = async (req, res) => {
         o.mf_img,
         o.mf_pass_date,
         o.mf_pass_location,
-        (SELECT COUNT(*) FROM mt_testimonial t WHERE t.memorial_id = d.number_list) AS tribute_count,
-        (SELECT MAX(t.mf_date) FROM mt_testimonial t WHERE t.memorial_id = d.number_list) AS tribute_latest,
+        (SELECT COUNT(*) FROM mt_tribute t WHERE t.memorial_id = d.number_list AND t.deleted_at IS NULL) AS tribute_count,
+        (SELECT MAX(t.mf_date) FROM mt_tribute t WHERE t.memorial_id = d.number_list AND t.deleted_at IS NULL) AS tribute_latest,
         (SELECT COUNT(*) FROM mt_album a WHERE a.memorial_id = d.number_list) AS photo_count,
         (SELECT MAX(a.mf_create_date) FROM mt_album a WHERE a.memorial_id = d.number_list) AS photo_latest
       FROM mt_deceased d

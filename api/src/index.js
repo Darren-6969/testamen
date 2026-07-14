@@ -85,6 +85,12 @@ const app = express();
       express.static(path.join(process.cwd(), 'uploads', 'obituary'))
     );
 
+    // memorial content (admin module: photos, backgrounds, videos, cemetery, profile)
+    app.use(
+      '/api/uploads/memorial',
+      express.static(path.join(process.cwd(), 'uploads', 'memorial'))
+    );
+    
     /* =====================================================
        5️⃣ Health check
     ===================================================== */
@@ -170,12 +176,13 @@ const app = express();
     const referralSettingsRoutes = require('./routes/referralSettings');
     app.use('/api/referral-settings', referralSettingsRoutes);
 
-    
-
-
     // audit trial
     const auditRoutes = require('./routes/audit');
     app.use('/api/audit', auditRoutes);
+
+    // customer admin module (memorial content module)
+    const adminRoutes = require('./routes/admin');
+    app.use('/api/admin', adminRoutes);
 
     /* =====================================================
        7️⃣ Start server (VERY LAST)

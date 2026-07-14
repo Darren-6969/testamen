@@ -1,6 +1,6 @@
 import {
   LayoutDashboard,
-  LayoutGrid,
+  ShieldUser,
   FileText,
   HandHeart,
   Settings,
@@ -8,7 +8,7 @@ import {
 
 export type AllowedIcons =
   | typeof LayoutDashboard
-  | typeof LayoutGrid
+  | typeof ShieldUser
   | typeof FileText
   | typeof HandHeart
   | typeof Settings;
@@ -28,7 +28,7 @@ const CUSTOMER_SIDEBAR_ITEMS: SidebarItem[] = [
   {
     label: 'Admin',
     href: '/module/admin',
-    icon: LayoutGrid,
+    icon: ShieldUser,
   },
   {
     label: 'Obituary',

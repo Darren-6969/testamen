@@ -69,13 +69,30 @@ export default function DashboardPage() {
     (m) => m.numberList === activeMemorial?.numberList
   );
 
-  const latestActivityDate = data?.activity[0]?.date ?? null;
+  // --- Storage card (HARDCODED example until the Admin module provides real usage) ---
+  // Quotas mirror mt_feature.storage_mb. When wired to the backend:
+  //   plan  = mt_user_account.feature_id -> mt_feature.feature_plan   (null => 'Free')
+  //   total = mt_feature.storage_mb (+ mt_user_account.referral_bonus_mb)
+  //   used  = summed media file sizes (available once mt_photo/mt_video exist)
+  const STORAGE_QUOTAS: Record<string, number> = {
+    Free: 0,
+    Standard: 100,
+    Plus: 500,
+    Premium: 1024,
+  };
+  const storagePlan = 'Plus'; // TODO: derive from feature_id (null => 'Free')
+  const storageUsedMb = 128; // TODO: real used storage from media tables
+  const storageTotalMb = STORAGE_QUOTAS[storagePlan] ?? 0;
+  const storagePct =
+    storageTotalMb > 0
+      ? Math.min(100, Math.round((storageUsedMb / storageTotalMb) * 100))
+      : 0;
 
   return (
     <div className="min-h-screen text-neutral-800">
       {/* Header */}
       <div className="bg-white border-b border-neutral-200">
-        <div className="max-w-7xl mx-auto px-8 pb-5">
+        <div className="pb-5">
           <h1 className="text-2xl font-bold tracking-wider text-[#c3195d]">
             MEMODISE Control Center
           </h1>
@@ -83,7 +100,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-8 py-8 space-y-6">
+      <div className="py-8 space-y-6">
         {/* Welcome Hero */}
         <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden">
           <div className="h-1 bg-[#c3195d]" />
@@ -121,9 +138,20 @@ export default function DashboardPage() {
 
             <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
               <p className="text-3xl font-bold text-[#c3195d]">
-                {formatDate(latestActivityDate)}
+                {storageUsedMb}
+                <span className="text-lg font-medium text-neutral-400">
+                  {' '}/ {storageTotalMb} MB
+                </span>
               </p>
-              <p className="text-sm text-neutral-500 mt-1">Latest Activity</p>
+              <p className="text-sm text-neutral-500 mt-1">
+                Storage &middot; {storagePlan} plan
+              </p>
+              <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-neutral-100">
+                <div
+                  className="h-full rounded-full bg-[#c3195d]"
+                  style={{ width: `${storagePct}%` }}
+                />
+              </div>
             </div>
           </div>
         </div>
