@@ -15,7 +15,7 @@ exports.listVideos = async (req, res) => {
       return res.status(403).json({ message: 'Not your memorial' });
     const rows = await runQuery(
       db,
-      `SELECT id, filename, poster, media_type, description
+      `SELECT id, filename, poster, media_type, description, file_size
        FROM mt_video
        WHERE memorial_id = $1 AND deleted_at IS NULL AND approval_status = 'approved'
        ORDER BY id DESC`,
@@ -28,6 +28,7 @@ exports.listVideos = async (req, res) => {
         poster: r.poster ? mediaUrl('videos', r.poster) : null,
         mediaType: r.media_type === 'audio' ? 'audio' : 'video',
         description: r.description || '',
+        sizeBytes: Number(r.file_size) || 0,
       }))
     );
   } catch (err) {

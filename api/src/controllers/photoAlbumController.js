@@ -2,14 +2,13 @@
 // Photos & Albums tab.
 //  - Backgrounds: mt_memorial_background (soft delete, is_active).
 //  - Albums:      mt_album  (MAX(id)+1, pre-existing table).
-//  - Photos:      mt_photo  (IDENTITY). Photos are HARD-deleted.
+//  - Photos:      mt_photo  (IDENTITY). Photos are soft-deleted (deleted_at).
 //  - Membership:  mt_album_photo (many-to-many). A photo can be in many albums
 //                 and always stays visible in the Photos section.
 
-const fs = require('fs');
 const { getConnection, runQuery } = require('../db/connectionManager');
 const { ownsMemorial, cleanupFiles } = require('../utils/adminHelpers');
-const { mediaUrl, diskPath } = require('../utils/memorialUpload');
+const { mediaUrl } = require('../utils/memorialUpload');
 
 const uploader = (req) => String(req.user?.userId || req.user?.codeNo || '').slice(0, 100);
 
@@ -22,7 +21,7 @@ exports.listBackgrounds = async (req, res) => {
       return res.status(403).json({ message: 'Not your memorial' });
     const rows = await runQuery(
       db,
-      `SELECT id, filename, is_active, created_by, created_date
+      `SELECT id, filename, file_size, is_active, created_by, created_date
        FROM mt_memorial_background
        WHERE memorial_id = $1 AND deleted_at IS NULL ORDER BY id DESC`,
       [String(memorialId)]
@@ -31,6 +30,7 @@ exports.listBackgrounds = async (req, res) => {
       (rows || []).map((r) => ({
         id: String(r.id),
         url: mediaUrl('backgrounds', r.filename),
+        sizeBytes: Number(r.file_size) || 0,
         isActive: r.is_active,
         createdBy: r.created_by,
         createdAt: r.created_date,
@@ -276,7 +276,7 @@ exports.listPhotos = async (req, res) => {
     if (albumId) {
       rows = await runQuery(
         db,
-        `SELECT p.id, p.filename, p.description, p.created_at
+        `SELECT p.id, p.filename, p.file_size, p.description, p.created_at
          FROM mt_photo p
          JOIN mt_album_photo ap ON ap.photo_id = p.id
          WHERE ap.album_id = $2 AND p.memorial_id = $1
@@ -287,7 +287,7 @@ exports.listPhotos = async (req, res) => {
     } else {
       rows = await runQuery(
         db,
-        `SELECT id, filename, description, created_at
+        `SELECT id, filename, file_size, description, created_at
          FROM mt_photo
          WHERE memorial_id = $1 AND deleted_at IS NULL AND approval_status = 'approved'
          ORDER BY id DESC`,
@@ -298,6 +298,7 @@ exports.listPhotos = async (req, res) => {
       (rows || []).map((r) => ({
         id: String(r.id),
         url: mediaUrl('photos', r.filename),
+        sizeBytes: Number(r.file_size) || 0,
         caption: r.description || '',
         createdAt: r.created_at,
       }))
@@ -355,16 +356,17 @@ exports.deletePhoto = async (req, res) => {
       [id, req.user?.codeNo]
     );
     if (!rows.length) return res.status(404).json({ status: 'error', message: 'Not found' });
-    await runQuery(db, `DELETE FROM mt_album_photo WHERE photo_id = $1`, [id]);
-    await runQuery(db, `DELETE FROM mt_photo WHERE id = $1`, [id]);
-    const p = diskPath('photos', rows[0].filename);
-    if (fs.existsSync(p)) {
-      try {
-        fs.unlinkSync(p);
-      } catch (_) {
-        /* ignore file error */
-      }
-    }
+    // Soft delete: keep the row + file on disk so it can be restored. Album links
+    // in mt_album_photo are left intact — every read path already filters
+    // deleted_at IS NULL (listPhotos, album photo_count, cover-photo), so the
+    // photo drops out of all listings and counts automatically, and its album
+    // membership is preserved if it's ever restored. storageController also sums
+    // file_size only WHERE deleted_at IS NULL, so it stops counting against quota.
+    await runQuery(
+      db,
+      `UPDATE mt_photo SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL`,
+      [id]
+    );
     return res.json({ status: 'success' });
   } catch (err) {
     console.error('deletePhoto error:', err);

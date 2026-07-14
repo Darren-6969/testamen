@@ -41,6 +41,7 @@ export interface MediaItem {
   createdBy?: string;
   createdAt?: string;
   isActive?: boolean;
+  sizeBytes?: number;
 }
 
 export interface Album {
@@ -58,6 +59,7 @@ export interface VideoItem {
   poster: string | null;
   mediaType: 'video' | 'audio';
   description?: string;
+  sizeBytes?: number;
 }
 
 export interface ApprovalItem {

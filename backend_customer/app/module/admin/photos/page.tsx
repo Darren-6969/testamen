@@ -5,17 +5,12 @@ import {
   Upload,
   FolderPlus,
   ImagePlus,
-  Trash2,
   Star,
   X,
-  Eye,
   Check,
   Plus,
   Pencil,
   FolderMinus,
-  ZoomIn,
-  ZoomOut,
-  Image as ImageIcon,
   Images,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -35,115 +30,13 @@ import {
   MediaItem,
   Album,
 } from '@/app/data/admin';
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mb-3 text-[11px] font-medium uppercase tracking-[0.15em] text-[#b3567e]">
-      {children}
-    </div>
-  );
-}
+import SectionLabel from '@/components/admin/SectionLabel';
+import Thumb from '@/components/admin/Thumb';
+import Lightbox from '@/components/admin/Lightbox';
+import ConfirmDialog, { ConfirmData } from '@/components/admin/ConfirmDialog';
 
 const uploadTile =
   'flex h-28 w-28 flex-none cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-pink-200 text-xs text-[#b3567e] transition hover:bg-pink-50 disabled:opacity-50';
-
-function Thumb({
-  item,
-  onOpen,
-  onDelete,
-  deleteIcon,
-  deleteLabel,
-  extra,
-  badge,
-}: {
-  item: MediaItem;
-  onOpen: () => void;
-  onDelete?: () => void;
-  deleteIcon?: React.ReactNode;
-  deleteLabel?: string;
-  extra?: React.ReactNode;
-  badge?: React.ReactNode;
-}) {
-  return (
-    <div className="group relative h-28 w-28 flex-none overflow-hidden rounded-xl bg-neutral-100">
-      <button onClick={onOpen} className="block h-full w-full cursor-pointer" aria-label="Preview">
-        {item.url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={item.url} alt="" className="h-full w-full object-cover transition duration-200 group-hover:scale-105" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-neutral-300">
-            <ImageIcon className="h-7 w-7" />
-          </div>
-        )}
-      </button>
-      <span className="pointer-events-none absolute inset-0 hidden items-center justify-center bg-black/25 group-hover:flex">
-        <Eye className="h-5 w-5 text-white" />
-      </span>
-      {badge}
-      <div className="absolute right-1.5 top-1.5 hidden gap-1 group-hover:flex">
-        {extra}
-        {onDelete && (
-          <button onClick={(e) => { e.stopPropagation(); onDelete(); }} aria-label={deleteLabel || 'Delete'} className="rounded-md bg-white/85 p-1 text-red-500">
-            {deleteIcon || <Trash2 className="h-4 w-4" />}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Zoomable / pannable preview
-function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
-  const [scale, setScale] = useState(1);
-  const [pos, setPos] = useState({ x: 0, y: 0 });
-  const drag = useRef<{ sx: number; sy: number; px: number; py: number } | null>(null);
-
-  const clamp = (s: number) => Math.min(5, Math.max(1, s));
-  const zoom = (d: number) =>
-    setScale((s) => {
-      const ns = clamp(Math.round((s + d) * 10) / 10);
-      if (ns === 1) setPos({ x: 0, y: 0 });
-      return ns;
-    });
-  const reset = () => {
-    setScale(1);
-    setPos({ x: 0, y: 0 });
-  };
-
-  const onMouseDown = (e: React.MouseEvent) => {
-    if (scale <= 1) return;
-    drag.current = { sx: e.clientX, sy: e.clientY, px: pos.x, py: pos.y };
-  };
-  const onMouseMove = (e: React.MouseEvent) => {
-    if (!drag.current) return;
-    setPos({ x: drag.current.px + (e.clientX - drag.current.sx), y: drag.current.py + (e.clientY - drag.current.sy) });
-  };
-  const onMouseUp = () => (drag.current = null);
-
-  const btn = 'rounded-full bg-white/10 p-2 text-white hover:bg-white/20';
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80" onClick={onClose} onMouseMove={onMouseMove} onMouseUp={onMouseUp}>
-      <div className="absolute right-5 top-5 z-10 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-        <button onClick={() => zoom(-0.3)} className={btn} aria-label="Zoom out"><ZoomOut className="h-5 w-5" /></button>
-        <button onClick={reset} className="rounded-full bg-white/10 px-3 py-1 text-xs text-white hover:bg-white/20">{Math.round(scale * 100)}%</button>
-        <button onClick={() => zoom(0.3)} className={btn} aria-label="Zoom in"><ZoomIn className="h-5 w-5" /></button>
-        <button onClick={onClose} className={btn} aria-label="Close"><X className="h-5 w-5" /></button>
-      </div>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src}
-        alt=""
-        onClick={(e) => e.stopPropagation()}
-        onMouseDown={onMouseDown}
-        onWheel={(e) => zoom(e.deltaY < 0 ? 0.2 : -0.2)}
-        draggable={false}
-        style={{ transform: `translate(${pos.x}px, ${pos.y}px) scale(${scale})`, cursor: scale > 1 ? 'grab' : 'default' }}
-        className="max-h-[90vh] max-w-[90vw] select-none rounded-lg object-contain transition-transform duration-75"
-      />
-    </div>
-  );
-}
 
 export default function PhotosTab() {
   const { activeMemorial } = useActiveMemorial();
@@ -177,6 +70,9 @@ export default function PhotosTab() {
   const [pickable, setPickable] = useState<MediaItem[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pickerBusy, setPickerBusy] = useState(false);
+
+  // confirmation dialog for destructive / remove actions
+  const [confirm, setConfirm] = useState<ConfirmData | null>(null);
 
   const bgInput = useRef<HTMLInputElement>(null);
   const photoInput = useRef<HTMLInputElement>(null);
@@ -370,7 +266,15 @@ export default function PhotosTab() {
             <Upload className="h-5 w-5" /> Upload
           </button>
           {backgrounds.map((b) => (
-            <Thumb key={b.id} item={b} onOpen={() => b.url && setLightbox(b.url)} onDelete={() => remove('background', b.id)}
+            <Thumb key={b.id} item={b} onOpen={() => b.url && setLightbox(b.url)} onDelete={() =>
+              setConfirm({
+                title: 'Delete background image?',
+                message: "This removes it from the memorial's backdrop options. This can't be undone.",
+                confirmLabel: 'Delete',
+                tone: 'danger',
+                onConfirm: () => remove('background', b.id),
+              })
+            }
               badge={b.isActive ? <span className="absolute left-1.5 top-1.5 rounded bg-[#c3195d] px-1.5 py-0.5 text-[10px] text-white">Active</span> : null}
               extra={!b.isActive ? (
                 <button onClick={(e) => { e.stopPropagation(); makeActive(b.id); }} aria-label="Set active" className="rounded-md bg-white/85 p-1 text-[#c3195d]"><Star className="h-4 w-4" /></button>
@@ -414,7 +318,15 @@ export default function PhotosTab() {
             <ImagePlus className="h-5 w-5" /> Upload
           </button>
           {photos.map((p) => (
-            <Thumb key={p.id} item={p} onOpen={() => p.url && setLightbox(p.url)} onDelete={() => remove('photo', p.id)} />
+            <Thumb key={p.id} item={p} onOpen={() => p.url && setLightbox(p.url)} onDelete={() =>
+              setConfirm({
+                title: 'Delete this photo?',
+                message: "It will be removed from the gallery and any albums it's in.",
+                confirmLabel: 'Delete',
+                tone: 'danger',
+                onConfirm: () => remove('photo', p.id),
+              })
+            } />
           ))}
         </div>
       </div>
@@ -490,7 +402,15 @@ export default function PhotosTab() {
 
             <div className="flex flex-wrap gap-3">
               {albumPhotos.map((p) => (
-                <Thumb key={p.id} item={p} onOpen={() => p.url && setLightbox(p.url)} onDelete={() => removeFromAlbum(p.id)} deleteIcon={<FolderMinus className="h-4 w-4" />} deleteLabel="Remove from album" />
+                <Thumb key={p.id} item={p} onOpen={() => p.url && setLightbox(p.url)} onDelete={() =>
+                  setConfirm({
+                    title: 'Remove from this album?',
+                    message: "The photo stays in your gallery; it's only removed from this album.",
+                    confirmLabel: 'Remove',
+                    tone: 'neutral',
+                    onConfirm: () => removeFromAlbum(p.id),
+                  })
+                } deleteIcon={<FolderMinus className="h-4 w-4" />} deleteLabel="Remove from album" />
               ))}
               {albumPhotos.length === 0 && <div className="flex h-28 items-center text-sm text-neutral-400">No photos in this album yet.</div>}
             </div>
@@ -535,6 +455,9 @@ export default function PhotosTab() {
           </div>
         </div>
       )}
+
+      {/* ---------- Confirm delete / remove ---------- */}
+      <ConfirmDialog data={confirm} onClose={() => setConfirm(null)} />
 
       {/* ---------- Lightbox ---------- */}
       {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} />}

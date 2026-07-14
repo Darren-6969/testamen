@@ -5,6 +5,9 @@ import { Upload, Play, Trash2, Video as VideoIcon, Music } from 'lucide-react';
 import { toast } from 'sonner';
 import { useActiveMemorial } from '@/app/context/ActiveMemorialContext';
 import { fetchVideos, uploadVideos, deleteMedia, VideoItem } from '@/app/data/admin';
+import { formatBytes } from '@/app/lib/format';
+import MediaPreview from '@/components/admin/MediaPreview';
+import ConfirmDialog, { ConfirmData } from '@/components/admin/ConfirmDialog';
 
 export default function VideosTab() {
   const { activeMemorial } = useActiveMemorial();
@@ -12,6 +15,8 @@ export default function VideosTab() {
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState<VideoItem | null>(null);
+  const [confirm, setConfirm] = useState<ConfirmData | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const load = async () => {
@@ -45,6 +50,15 @@ export default function VideosTab() {
     } else toast.error('Failed to remove');
   };
 
+  const askDelete = (v: VideoItem) =>
+    setConfirm({
+      title: v.mediaType === 'audio' ? 'Delete this audio?' : 'Delete this video?',
+      message: 'It will be removed from the memorial.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+      onConfirm: () => remove(v.id),
+    });
+
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
       <div className="mb-5 flex items-center gap-2 text-base font-medium text-gray-700">
@@ -75,37 +89,70 @@ export default function VideosTab() {
           </button>
 
           {videos.map((v) => (
-            <div key={v.id} className="group relative w-32">
-              <div className="relative flex h-32 w-32 items-center justify-center overflow-hidden rounded-xl bg-neutral-900 text-neutral-500">
-                {v.poster ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={v.poster} alt="" className="h-full w-full object-cover" />
-                ) : v.mediaType === 'audio' ? (
-                  <Music className="h-8 w-8" />
-                ) : (
-                  <VideoIcon className="h-8 w-8" />
-                )}
-                <a
-                  href={v.url || '#'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="absolute flex h-9 w-9 items-center justify-center rounded-full bg-white/85 text-[#c3195d]"
-                >
-                  <Play className="h-4 w-4" />
-                </a>
+            <div key={v.id} className="w-32">
+              <div className="group relative h-32 w-32 flex-none overflow-hidden rounded-xl bg-neutral-900">
                 <button
-                  onClick={() => remove(v.id)}
-                  aria-label="Delete"
-                  className="absolute right-1.5 top-1.5 hidden rounded-md bg-white/85 p-1 text-red-500 group-hover:block"
+                  onClick={() => setPreview(v)}
+                  className="block h-full w-full cursor-pointer"
+                  aria-label="Play"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  {v.poster ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={v.poster}
+                      alt=""
+                      className="h-full w-full object-cover transition duration-200 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-neutral-500">
+                      {v.mediaType === 'audio' ? (
+                        <Music className="h-8 w-8" />
+                      ) : (
+                        <VideoIcon className="h-8 w-8" />
+                      )}
+                    </div>
+                  )}
                 </button>
+
+                {/* hover overlay */}
+                <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition group-hover:opacity-100">
+                  <Play className="h-6 w-6 text-white" />
+                </span>
+
+                {/* size on hover */}
+                {v.sizeBytes ? (
+                  <span className="pointer-events-none absolute bottom-1.5 left-1.5 hidden rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white group-hover:block">
+                    {formatBytes(v.sizeBytes)}
+                  </span>
+                ) : null}
+
+                {/* delete on hover */}
+                <div className="absolute right-1.5 top-1.5 hidden group-hover:block">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      askDelete(v);
+                    }}
+                    aria-label="Delete"
+                    className="rounded-md bg-white/85 p-1 text-red-500"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
-              {v.description && <p className="mt-1.5 line-clamp-2 text-xs text-neutral-500">{v.description}</p>}
+              {v.description && (
+                <p className="mt-1.5 line-clamp-2 text-xs text-neutral-500">{v.description}</p>
+              )}
             </div>
           ))}
         </div>
       )}
+
+      {/* ---------- Player ---------- */}
+      <MediaPreview item={preview} onClose={() => setPreview(null)} />
+
+      {/* ---------- Confirm delete ---------- */}
+      <ConfirmDialog data={confirm} onClose={() => setConfirm(null)} />
     </div>
   );
 }
