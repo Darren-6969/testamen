@@ -28,4 +28,20 @@ function cleanupFiles(files = []) {
   });
 }
 
-module.exports = { ownsMemorial, cleanupFiles };
+function parseDescriptions(raw, count) {
+  let list = [];
+  try {
+    const parsed = JSON.parse(raw || '[]');
+    if (Array.isArray(parsed)) list = parsed;
+  } catch (_) {
+    /* malformed -> no captions */
+  }
+  return Array.from({ length: count }, (_, i) => {
+    const v = list[i];
+    if (typeof v !== 'string') return null;
+    const trimmed = v.trim();
+    return trimmed ? trimmed.slice(0, 1000) : null;
+  });
+}
+
+module.exports = { ownsMemorial, cleanupFiles, parseDescriptions };

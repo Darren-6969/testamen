@@ -5,7 +5,9 @@ const { verifyToken } = require("../middleware/authMiddleware");
 
 
 router.get('/list', verifyToken, ctrl.getFeedback);
+router.get('/:id', verifyToken, ctrl.getFeedbackById);
 router.post('/', verifyToken, ctrl.createFeedback);
+router.put('/:id', verifyToken, ctrl.updateFeedback);
 router.delete('/:id', verifyToken, ctrl.deleteFeedback);
 
 

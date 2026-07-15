@@ -3,19 +3,18 @@ const router = express.Router();
 
 const {
   getPlansStorage,
+  getPlansStorageById,
+  createPlansStorage,
   updatePlansStorage,
+  updatePlansStorageById,
+  deletePlansStorage,
 } = require('../controllers/plansStorageController');
 
-/**
- * GET /api/plans-storage
- * Fetch all plans and storage settings
- */
 router.get('/', getPlansStorage);
-
-/**
- * PUT /api/plans-storage
- * Update plans storage and pricing
- */
+router.get('/:id', getPlansStorageById);
+router.post('/', createPlansStorage);
 router.put('/', updatePlansStorage);
+router.put('/:id', updatePlansStorageById);
+router.delete('/:id', deletePlansStorage);
 
 module.exports = router;

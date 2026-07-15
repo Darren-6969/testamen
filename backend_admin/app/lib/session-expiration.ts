@@ -5,10 +5,7 @@ import { toast } from 'sonner';
 
 export const SESSION_EXPIRED_REASON = 'session-expired';
 const SESSION_EXPIRY_AT_KEY = 'session_expiry_at';
-const SESSION_ACCESS_TOKEN_KEY = 'authToken';
-const SESSION_REFRESH_TOKEN_KEY = 'refreshToken';
 const SESSION_WARNING_MS = 60 * 1000;
-const FALLBACK_SESSION_MS = 60 * 60 * 1000;
 const LAST_ROUTE_KEY = 'auth_redirect_path';
 
 const SESSION_EXPIRED_MESSAGE = 'Session expired';
@@ -19,13 +16,10 @@ let isRedirectingToLogin = false;
 function clearClientAuthState() {
   Cookies.remove('access_token', { path: '/' });
   Cookies.remove('token', { path: '/' });
-  Cookies.remove('auth_token', { path: '/' });
-  Cookies.remove('refreshToken', { path: '/' });
-  Cookies.remove('refresh_token', { path: '/' });
 
   localStorage.removeItem('currentUser');
-  localStorage.removeItem(SESSION_ACCESS_TOKEN_KEY);
-  localStorage.removeItem(SESSION_REFRESH_TOKEN_KEY);
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('refreshToken');
   localStorage.removeItem(SESSION_EXPIRY_AT_KEY);
 }
 
@@ -87,50 +81,24 @@ function decodeJwtPayload(token: string) {
   }
 }
 
-export function storeSessionAccessToken(token?: string | null, refreshToken?: string | null) {
+export function storeSessionAccessToken(token?: string | null) {
   if (typeof window === 'undefined') {
     return null;
   }
 
   if (!token) {
-    Cookies.remove('token', { path: '/' });
-    Cookies.remove('access_token', { path: '/' });
-    Cookies.remove('auth_token', { path: '/' });
-    localStorage.removeItem(SESSION_ACCESS_TOKEN_KEY);
     localStorage.removeItem(SESSION_EXPIRY_AT_KEY);
     return null;
   }
 
   const payload = decodeJwtPayload(token);
-  const tokenExpiryAt = payload?.exp ? payload.exp * 1000 : null;
-  const expiryAt =
-    tokenExpiryAt && tokenExpiryAt > Date.now()
-      ? tokenExpiryAt
-      : Date.now() + FALLBACK_SESSION_MS;
+  const expiryAt = payload?.exp ? payload.exp * 1000 : null;
 
-  const accessCookieOptions = {
-    path: '/',
-    sameSite: 'lax' as const,
-    expires: new Date(expiryAt),
-  };
-
-  Cookies.set('token', token, accessCookieOptions);
-  Cookies.set('access_token', token, accessCookieOptions);
-  Cookies.set('auth_token', token, accessCookieOptions);
-
-  if (refreshToken) {
-    const refreshPayload = decodeJwtPayload(refreshToken);
-    const refreshExpiryAt = refreshPayload?.exp ? refreshPayload.exp * 1000 : expiryAt;
-
-    Cookies.set('refreshToken', refreshToken, {
-      path: '/',
-      sameSite: 'lax',
-      expires: new Date(refreshExpiryAt),
-    });
-    localStorage.setItem(SESSION_REFRESH_TOKEN_KEY, refreshToken);
+  if (!expiryAt) {
+    localStorage.removeItem(SESSION_EXPIRY_AT_KEY);
+    return null;
   }
 
-  localStorage.setItem(SESSION_ACCESS_TOKEN_KEY, token);
   localStorage.setItem(SESSION_EXPIRY_AT_KEY, String(expiryAt));
   return expiryAt;
 }

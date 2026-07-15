@@ -1,9 +1,10 @@
 // src/controllers/videoController.js
-// Videos & Audios tab: mt_video (uploaded files only for now).
+// Videos & Audios tab: mt_video 
 
 const { getConnection, runQuery } = require('../db/connectionManager');
-const { ownsMemorial, cleanupFiles } = require('../utils/adminHelpers');
+const { ownsMemorial, cleanupFiles, parseDescriptions } = require('../utils/adminHelpers');
 const { mediaUrl } = require('../utils/memorialUpload');
+const { generatePoster } = require('../utils/videoPoster');
 
 const uploader = (req) => String(req.user?.userId || req.user?.codeNo || '').slice(0, 100);
 
@@ -42,18 +43,23 @@ exports.uploadVideos = async (req, res) => {
   try {
     const memorialId = req.body.memorialId;
     const files = req.files || [];
+    const descriptions = parseDescriptions(req.body.descriptions, files.length);
     if (!(await ownsMemorial(db, memorialId, req.user?.codeNo))) {
       cleanupFiles(files);
       return res.status(403).json({ status: 'error', message: 'Not your memorial' });
     }
-    for (const f of files) {
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
       const mediaType = f.mimetype.startsWith('audio/') ? 'audio' : 'video';
+      // Audio has no frames to grab. Video posters fail soft: a null poster just
+      // means the UI shows the glyph fallback, so we never fail the upload here.
+      const poster = mediaType === 'video' ? await generatePoster(f.path) : null;
       await runQuery(
         db,
         `INSERT INTO mt_video
-           (memorial_id, filename, media_type, file_size, uploaded_by, approval_status)
-         VALUES ($1, $2, $3, $4, $5, 'approved')`,
-        [String(memorialId), f.filename, mediaType, f.size, uploader(req)]
+           (memorial_id, filename, poster, media_type, file_size, description, uploaded_by, approval_status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved')`,
+        [String(memorialId), f.filename, poster, mediaType, f.size, descriptions[i], uploader(req)]
       );
     }
     return res.json({ status: 'success' });

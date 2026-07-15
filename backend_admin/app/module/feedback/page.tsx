@@ -14,6 +14,13 @@ export default function FeedbackPage() {
   const [reloadKey, setReloadKey] = useState(0);
 
   /**
+   * EDIT
+   */
+  const handleEdit = (id: number) => {
+    router.push(`/module/feedback/edit?id=${id}`);
+  };
+
+  /**
    * DELETE (SOFT DELETE)
    */
   const handleDelete = async (id: number) => {
@@ -54,7 +61,7 @@ export default function FeedbackPage() {
       <GenericTablePage
         key={reloadKey}
         fetchData={fetchFeedbacks}
-        columns={feedbackColumns(handleDelete)}
+        columns={feedbackColumns(handleDelete, handleEdit)}
         addRoute="/module/feedback/add"
         config={{
           addButtonLabel: 'Add Feedback',

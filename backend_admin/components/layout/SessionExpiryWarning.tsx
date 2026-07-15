@@ -100,7 +100,7 @@ export default function SessionExpiryWarning({ enabled }: { enabled: boolean }) 
       }
 
       const data = await response.json();
-      const nextExpiryAt = storeSessionAccessToken(data.accessToken ?? data.access_token ?? data.token);
+      const nextExpiryAt = storeSessionAccessToken(data.accessToken);
 
       if (!nextExpiryAt) {
         throw new Error('Missing access token');

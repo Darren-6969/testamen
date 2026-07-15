@@ -1,6 +1,6 @@
 -- =====================================================================
 -- MIGRATION REQUIRED: album <-> photo many-to-many link
--- Lets a photo belong to multiple albums while still showing in Photos.
+-- Let a photo belong to multiple albums while still showing in Photos.
 -- Run once. Safe to re-run.
 -- =====================================================================
 
@@ -21,6 +21,5 @@ WHERE album_id IS NOT NULL
 ON CONFLICT (album_id, photo_id) DO NOTHING;
 
 -- mt_photo.album_id is now legacy (membership lives in mt_album_photo).
--- Left in place for reference; safe to drop later once confirmed.
 
 COMMIT;

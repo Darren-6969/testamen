@@ -1,7 +1,6 @@
 // src/controllers/storageController.js
 // Account-level storage usage: quota from the plan (mt_feature), used = summed
-// file_size across all media of the account's memorials. Feeds the dashboard
-// storage card and the admin shell bar.
+// file_size across all media of the account's memorials. Feeds the dashboard storage card and the admin shell bar.
 
 const { getConnection, runQuery } = require('../db/connectionManager');
 

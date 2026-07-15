@@ -22,8 +22,10 @@ import {
 import { SidebarItem, fetchModuleList } from '../../app/data/sidebar';
 
 // 🔹 import your Staff type + profile fetcher
-import { Staff } from '@/app/data/staffs';
-import { fetchMyProfile } from '@/app/data/setting';
+import {
+  CustomerProfile,
+  fetchMyCustomerProfile,
+} from '@/app/data/customerProfile';
 
 import {
   fetchUnreadNotificationCount,
@@ -45,7 +47,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const [sidebarItems, setSidebarItems] = useState<SidebarItem[]>([]);
 
   // 🔹 current logged-in user
-  const [currentUser, setCurrentUser] = useState<Staff | null>(null);
+  const [currentUser, setCurrentUser] = useState<CustomerProfile | null>(null);
 
   // 🔔 notifications
   const [notifCount, setNotifCount] = useState(0);
@@ -72,7 +74,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const data = await fetchMyProfile();
+        const data = await fetchMyCustomerProfile();
         if (data) {
           setCurrentUser(data);
         }
@@ -155,11 +157,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
       console.log("Logout error:", e);
     } finally {
       // if you used old name before:
-      Cookies.remove("token", { path: "/" });
       Cookies.remove("access_token", { path: "/" });
-      Cookies.remove("auth_token", { path: "/" });
-      Cookies.remove("refreshToken", { path: "/" });
-      Cookies.remove("refresh_token", { path: "/" });
 
       // ✅ optional: clear localStorage
       localStorage.removeItem("currentUser");
@@ -179,7 +177,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   };
 
   const handleProfileClick = () => {
-    router.push(`/module/setting/profile`);
+    router.push(`/module/customer-profile`);
   }
 
   // 🔹 derived display values

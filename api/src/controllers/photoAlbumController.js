@@ -3,11 +3,10 @@
 //  - Backgrounds: mt_memorial_background (soft delete, is_active).
 //  - Albums:      mt_album  (MAX(id)+1, pre-existing table).
 //  - Photos:      mt_photo  (IDENTITY). Photos are soft-deleted (deleted_at).
-//  - Membership:  mt_album_photo (many-to-many). A photo can be in many albums
-//                 and always stays visible in the Photos section.
+//  - Membership:  mt_album_photo (many-to-many). A photo can be in many albums and always stays visible in the Photos section.
 
 const { getConnection, runQuery } = require('../db/connectionManager');
-const { ownsMemorial, cleanupFiles } = require('../utils/adminHelpers');
+const { ownsMemorial, cleanupFiles, parseDescriptions } = require('../utils/adminHelpers');
 const { mediaUrl } = require('../utils/memorialUpload');
 
 const uploader = (req) => String(req.user?.userId || req.user?.codeNo || '').slice(0, 100);
@@ -315,16 +314,18 @@ exports.uploadPhotos = async (req, res) => {
     const memorialId = req.body.memorialId;
     const albumId = req.body.albumId || null;
     const files = req.files || [];
+    const descriptions = parseDescriptions(req.body.descriptions, files.length);
     if (!(await ownsMemorial(db, memorialId, req.user?.codeNo))) {
       cleanupFiles(files);
       return res.status(403).json({ status: 'error', message: 'Not your memorial' });
     }
-    for (const f of files) {
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
       const inserted = await runQuery(
         db,
-        `INSERT INTO mt_photo (memorial_id, filename, file_size, uploaded_by, approval_status)
-         VALUES ($1, $2, $3, $4, 'approved') RETURNING id`,
-        [String(memorialId), f.filename, f.size, uploader(req)]
+        `INSERT INTO mt_photo (memorial_id, filename, file_size, description, uploaded_by, approval_status)
+         VALUES ($1, $2, $3, $4, $5, 'approved') RETURNING id`,
+        [String(memorialId), f.filename, f.size, descriptions[i], uploader(req)]
       );
       if (albumId) {
         await runQuery(

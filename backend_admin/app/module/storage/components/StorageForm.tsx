@@ -4,18 +4,13 @@ import { useState } from 'react';
 import { Save, X } from 'lucide-react';
 
 export interface StorageFormData {
-  title: string;
-  description: string;
-  victim: string;
-  date_of_incident: string;
-  time: string;
-  location: string;
+  feature_plan: string;
+  storage_mb: string;
+  price_rm: string;
   status: string;
-  casualty_count: string;
-  reference_link: string;
 }
 
-interface IncidentFormProps {
+interface StorageFormProps {
   initialData?: Partial<StorageFormData>;
   submitLabel?: string;
   saving?: boolean;
@@ -25,25 +20,20 @@ interface IncidentFormProps {
 }
 
 const defaultFormData: StorageFormData = {
-  title: '',
-  description: '',
-  victim: '',
-  date_of_incident: '',
-  time: '',
-  location: '',
-  status: 'ACTIVE',
-  casualty_count: '0',
-  reference_link: '',
+  feature_plan: '',
+  storage_mb: '',
+  price_rm: '',
+  status: 'active',
 };
 
-export default function IncidentForm({
+export default function StorageForm({
   initialData,
-  submitLabel = 'Save Incident',
+  submitLabel = 'Save Storage Plan',
   saving = false,
   errorMessage = null,
   onSubmit,
   onCancel,
-}: IncidentFormProps) {
+}: StorageFormProps) {
   const [formData, setFormData] = useState<StorageFormData>({
     ...defaultFormData,
     ...initialData,
@@ -59,13 +49,18 @@ export default function IncidentForm({
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!formData.title.trim()) {
-      alert('Please enter incident title.');
+    if (!formData.feature_plan.trim()) {
+      alert('Please enter a plan name.');
       return;
     }
 
-    if (!formData.location.trim()) {
-      alert('Please enter location.');
+    if (!formData.storage_mb || Number(formData.storage_mb) <= 0) {
+      alert('Please enter a valid storage capacity in MB.');
+      return;
+    }
+
+    if (!formData.price_rm || Number(formData.price_rm) < 0) {
+      alert('Please enter a valid price.');
       return;
     }
 
@@ -79,10 +74,10 @@ export default function IncidentForm({
     >
       <div className="border-b border-slate-200 bg-gradient-to-r from-pink-50 via-white to-white px-6 py-5">
         <h2 className="text-lg font-bold text-slate-900">
-          Incident Information
+          Storage Details
         </h2>
         <p className="mt-1 text-sm text-slate-500">
-          Fill in the incident details, casualty information, status and reference link.
+          Configure the plan name, storage capacity, and pricing.
         </p>
       </div>
 
@@ -96,67 +91,13 @@ export default function IncidentForm({
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <div className="space-y-2">
             <label className="text-sm font-bold text-slate-700">
-              Incident Title <span className="text-[#c3195d]">*</span>
+              Plan Name <span className="text-[#c3195d]">*</span>
             </label>
             <input
-              value={formData.title}
-              onChange={(e) => handleChange('title', e.target.value)}
+              value={formData.feature_plan}
+              onChange={(e) => handleChange('feature_plan', e.target.value)}
               disabled={saving}
-              placeholder="Example: COVID"
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#c3195d]/50 focus:ring-4 focus:ring-[#c3195d]/10"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700">
-              Date of Incident
-            </label>
-            <input
-              type="date"
-              value={formData.date_of_incident}
-              onChange={(e) => handleChange('date_of_incident', e.target.value)}
-              disabled={saving}
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#c3195d]/50 focus:ring-4 focus:ring-[#c3195d]/10"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700">
-              Time
-            </label>
-            <input
-              type="time"
-              value={formData.time}
-              onChange={(e) => handleChange('time', e.target.value)}
-              disabled={saving}
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#c3195d]/50 focus:ring-4 focus:ring-[#c3195d]/10"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700">
-              No. of Casualty
-            </label>
-            <input
-              type="number"
-              min="0"
-              value={formData.casualty_count}
-              onChange={(e) => handleChange('casualty_count', e.target.value)}
-              disabled={saving}
-              placeholder="0"
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#c3195d]/50 focus:ring-4 focus:ring-[#c3195d]/10"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700">
-              Location <span className="text-[#c3195d]">*</span>
-            </label>
-            <input
-              value={formData.location}
-              onChange={(e) => handleChange('location', e.target.value)}
-              disabled={saving}
-              placeholder="Example: MALAYSIA"
+              placeholder="e.g., Pro, Enterprise"
               className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#c3195d]/50 focus:ring-4 focus:ring-[#c3195d]/10"
             />
           </div>
@@ -171,51 +112,50 @@ export default function IncidentForm({
               disabled={saving}
               className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#c3195d]/50 focus:ring-4 focus:ring-[#c3195d]/10"
             >
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="MONITORING">MONITORING</option>
-              <option value="RESOLVED">RESOLVED</option>
-              <option value="CLOSED">CLOSED</option>
+              <option value="active">ACTIVE</option>
+              <option value="inactive">INACTIVE</option>
             </select>
           </div>
 
           <div className="space-y-2">
             <label className="text-sm font-bold text-slate-700">
-              Victim / Affected Person
+              Storage Capacity (MB) <span className="text-[#c3195d]">*</span>
             </label>
-            <input
-              value={formData.victim}
-              onChange={(e) => handleChange('victim', e.target.value)}
-              disabled={saving}
-              placeholder="Victim name or affected group"
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#c3195d]/50 focus:ring-4 focus:ring-[#c3195d]/10"
-            />
+            <div className="relative rounded-2xl shadow-sm">
+              <input
+                type="number"
+                min="1"
+                value={formData.storage_mb}
+                onChange={(e) => handleChange('storage_mb', e.target.value)}
+                disabled={saving}
+                placeholder="2048"
+                className="w-full rounded-2xl border border-slate-200 bg-white pr-12 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#c3195d]/50 focus:ring-4 focus:ring-[#c3195d]/10"
+              />
+              <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                <span className="text-gray-400 text-xs font-semibold">MB</span>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">
             <label className="text-sm font-bold text-slate-700">
-              Reference Link
+              Pricing (RM) <span className="text-[#c3195d]">*</span>
             </label>
-            <input
-              value={formData.reference_link}
-              onChange={(e) => handleChange('reference_link', e.target.value)}
-              disabled={saving}
-              placeholder="https://example.com"
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#c3195d]/50 focus:ring-4 focus:ring-[#c3195d]/10"
-            />
-          </div>
-
-          <div className="space-y-2 md:col-span-2">
-            <label className="text-sm font-bold text-slate-700">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => handleChange('description', e.target.value)}
-              disabled={saving}
-              placeholder="Describe the incident details..."
-              rows={5}
-              className="w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#c3195d]/50 focus:ring-4 focus:ring-[#c3195d]/10"
-            />
+            <div className="relative rounded-2xl shadow-sm">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <span className="text-gray-400 text-xs font-semibold">RM</span>
+              </div>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.price_rm}
+                onChange={(e) => handleChange('price_rm', e.target.value)}
+                disabled={saving}
+                placeholder="0.00"
+                className="w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#c3195d]/50 focus:ring-4 focus:ring-[#c3195d]/10"
+              />
+            </div>
           </div>
         </div>
       </div>

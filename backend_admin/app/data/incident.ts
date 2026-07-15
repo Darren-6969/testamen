@@ -10,16 +10,6 @@ export interface Incident {
   status?: string | null;
   reference_link: string | null;
   message_count: number;
-  comments?: IncidentComment[];
-}
-
-export interface IncidentComment {
-  id: number | string;
-  name?: string | null;
-  email?: string | null;
-  create_date?: string | null;
-  icon?: string | null;
-  message?: string | null;
 }
 
 export type IncidentPayload = {

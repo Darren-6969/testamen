@@ -1,38 +1,17 @@
-// src/utils/sidebar.ts
-import axios from 'axios';
-import { 
-  User, 
-  LayoutDashboard, 
-  UserPlus,
-  UserRound,
-  HandHeart, 
-  ReceiptText,
-  TriangleAlert, 
-  CreditCard, 
-  Feather,
-  Wrench, 
-  MessageSquareText,
-  Package, 
-  SlidersHorizontal, 
-  HeartHandshake,
-  ChartNoAxesCombined, 
-  UserCog,
-  HelpCircle, 
-  LayoutGrid,
-  Database,
-  ChartColumn,
+import {
+  LayoutDashboard,
+  ShieldUser,
+  FileText,
+  HandHeart,
   Settings,
-  Save
 } from 'lucide-react';
 
-export type AllowedIcons = typeof User | typeof LayoutDashboard | typeof UserPlus | typeof HandHeart | typeof LayoutGrid | typeof ReceiptText | typeof TriangleAlert | typeof CreditCard | typeof Feather | typeof Wrench | typeof MessageSquareText | typeof Package | typeof SlidersHorizontal | typeof HeartHandshake | typeof ChartNoAxesCombined | typeof UserCog | typeof HelpCircle | typeof Database | typeof ChartColumn | typeof Settings | typeof Save;
-
-// Types
-interface RawSidebarItem {
-  icon: string;
-  label: string;
-  href: string;
-}
+export type AllowedIcons =
+  | typeof LayoutDashboard
+  | typeof ShieldUser
+  | typeof FileText
+  | typeof HandHeart
+  | typeof Settings;
 
 export interface SidebarItem {
   label: string;
@@ -40,46 +19,34 @@ export interface SidebarItem {
   icon: AllowedIcons;
 }
 
-// Icon name mapping
-const ICON_MAP: Record<string, AllowedIcons> = {
-  LayoutDashboard,
-  LayoutGrid,
-  UserPlus,
-  UserRound,
-  HandHeart,
-  ReceiptText,
-  TriangleAlert,
-  CreditCard,
-  Feather,
-  Wrench,
-  MessageSquareText,
-  Package,
-  SlidersHorizontal,
-  HeartHandshake,
-  ChartNoAxesCombined,
-  UserCog,
-  Database,
-  ChartColumn,
-  Settings,
-  Save,
-};
-
-function transformSidebarItems(raw: RawSidebarItem[]): SidebarItem[] {
-  return raw.map((item) => ({
-    label: item.label,
-    href: item.href as `/module/${string}`,
-    icon: ICON_MAP[item.icon] ?? HelpCircle,
-  }));
-}
-
-// API
-const baseUrl = process.env.NEXT_PUBLIC_API_URL!;
+const CUSTOMER_SIDEBAR_ITEMS: SidebarItem[] = [
+  {
+    label: 'Dashboard',
+    href: '/module/dashboard',
+    icon: LayoutDashboard,
+  },
+  {
+    label: 'Admin',
+    href: '/module/admin',
+    icon: ShieldUser,
+  },
+  {
+    label: 'Obituary',
+    href: '/module/obituary',
+    icon: FileText,
+  },
+  {
+    label: 'Love Giving',
+    href: '/module/love-giving',
+    icon: HandHeart,
+  },
+  {
+    label: 'Settings',
+    href: '/module/setting',
+    icon: Settings,
+  },
+];
 
 export async function fetchModuleList(): Promise<SidebarItem[]> {
-  const response = await axios.get<RawSidebarItem[]>(
-    `/api/users/modulelist`,
-    { withCredentials: true }
-  );
-
-  return transformSidebarItems(response.data);
+  return CUSTOMER_SIDEBAR_ITEMS;
 }

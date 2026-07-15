@@ -9,8 +9,6 @@ BEGIN;
 UPDATE public.mt_feature SET storage_mb = '50' WHERE feature_plan = 'Free';
 
 -- 2) Tributes (created by visitors on the public page; admin lists/deletes)
---    NOTE: if you already created mt_tribute, DROP it first or ALTER to add
---    the IDENTITY id + deleted_at, then re-run.
 CREATE TABLE IF NOT EXISTS public.mt_tribute (
     id            integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     mf_description character varying(1000),

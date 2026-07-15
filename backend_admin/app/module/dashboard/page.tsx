@@ -1,19 +1,47 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  UserPlus,
-  HandHeart,
-  TriangleAlert,
-  CreditCard,
-  CheckCircle2,
-  ArrowRight,
-  Activity,
+  Heart,
+  Image as ImageIcon,
+  Video,
+  ExternalLink,
+  FileText,
+  Edit,
+  Plus,
   Bell,
+  User,
 } from 'lucide-react';
+import {
+  fetchDashboardOverview,
+  DashboardOverview,
+  DashboardMemorial,
+} from '@/app/data/dashboard';
+import { fetchStorage, StorageInfo } from '@/app/data/admin';
+import { useActiveMemorial } from '@/app/context/ActiveMemorialContext';
+
+// The public memorial site isn't part of this repo yet — set this env var
+// once that domain/app exists. Until then "View site" is disabled.
+const MEMORIAL_SITE_URL = process.env.NEXT_PUBLIC_MEMORIAL_SITE_URL || '';
+
+function formatDate(value: string | null): string {
+  if (!value) return '—';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-MY', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { activeMemorial, setActiveMemorial } = useActiveMemorial();
+  const [data, setData] = useState<DashboardOverview | null>(null);
+  const [storage, setStorage] = useState<StorageInfo | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const today = new Date().toLocaleDateString('en-MY', {
     weekday: 'long',
@@ -22,38 +50,51 @@ export default function DashboardPage() {
     year: 'numeric',
   });
 
-  const quickModules = [
-    {
-      title: 'Registration',
-      desc: 'Manage registrations and application records.',
-      icon: UserPlus,
-      path: '/module/registration',
-    },
-    {
-      title: 'Deceased',
-      desc: 'Manage deceased records and memorial information.',
-      icon: HandHeart,
-      path: '/module/deceased',
-    },
-    {
-      title: 'Incident',
-      desc: 'Manage incident reports and follow-up actions.',
-      icon: TriangleAlert,
-      path: '/module/incident',
-    },
-    {
-      title: 'Billing & Payment',
-      desc: 'Track invoices, payments and billing records.',
-      icon: CreditCard,
-      path: '/module/billing',
-    },
-  ];
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      // storage is account-level (scoped by code_no on the server), so it needs
+      // no memorial and can load in parallel with the overview
+      const [overview, storageInfo] = await Promise.all([
+        fetchDashboardOverview(),
+        fetchStorage(),
+      ]);
+      setData(overview);
+      setStorage(storageInfo);
+      if (overview.memorials.length > 0 && !activeMemorial) {
+        setActiveMemorial({
+          numberList: overview.memorials[0].numberList,
+          name: overview.memorials[0].name,
+        });
+      }
+      setLoading(false);
+    };
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const activeStats: DashboardMemorial | undefined = data?.memorials.find(
+    (m) => m.numberList === activeMemorial?.numberList
+  );
+
+  // --- Storage card ---
+  // Served by /api/admin/storage: quota from the account's plan (mt_feature.storage_mb
+  // + referral bonus), used = summed file_size of live media across all the account's
+  // memorials. 
+  const storageUsedMb = storage?.usedMb ?? 0;
+  const storageTotalMb = storage?.totalMb ?? 0;
+  const storagePlan = storage?.plan ?? 'Free';
+  const storagePct =
+    storageTotalMb > 0
+      ? Math.min(100, Math.round((storageUsedMb / storageTotalMb) * 100))
+      : 0;
+  const storageOver = storageTotalMb > 0 && storageUsedMb > storageTotalMb;
 
   return (
-    <div className="min-h-screen bg-neutral-50 text-neutral-800">
+    <div className="min-h-screen text-neutral-800">
       {/* Header */}
       <div className="bg-white border-b border-neutral-200">
-        <div className="max-w-7xl mx-auto px-8 pb-5">
+        <div className="pb-5">
           <h1 className="text-2xl font-bold tracking-wider text-[#c3195d]">
             MEMODISE Control Center
           </h1>
@@ -61,20 +102,16 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-8 py-8 space-y-6">
+      <div className="py-8 space-y-6">
         {/* Welcome Hero */}
         <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden">
           <div className="h-1 bg-[#c3195d]" />
-
           <div className="p-6">
-            <h2 className="text-xl font-semibold text-neutral-900">
-              Welcome Back
-            </h2>
-
+            <h2 className="text-xl font-semibold text-neutral-900">Welcome Back</h2>
             <p className="mt-2 text-sm text-neutral-500 leading-relaxed max-w-3xl">
-              Manage registrations, deceased records, public prayer requests,
-              billing activities and incident reports from one centralized
-              platform.
+              {data && data.memorials.length > 0
+                ? `You have ${data.memorials.length} memorial${data.memorials.length > 1 ? 's' : ''} under your account. Select one below to manage its content.`
+                : 'Manage your memorials, tributes, photos and obituaries from one place.'}
             </p>
           </div>
         </div>
@@ -82,188 +119,257 @@ export default function DashboardPage() {
         {/* KPI SECTION */}
         <div>
           <h3 className="text-sm font-semibold uppercase tracking-wider text-[#c3195d] mb-3">
-            Today Overview
+            Account Overview
           </h3>
 
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
             <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
-              <p className="text-3xl font-bold">25</p>
-              <p className="text-sm text-neutral-500 mt-1">Registrations</p>
+              <p className="text-3xl font-bold">{data?.aggregate.totalMemorials ?? 0}</p>
+              <p className="text-sm text-neutral-500 mt-1">Memorials</p>
             </div>
 
             <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
-              <p className="text-3xl font-bold">12</p>
-              <p className="text-sm text-neutral-500 mt-1">Deceased Records</p>
+              <p className="text-3xl font-bold">{data?.aggregate.totalTributes ?? 0}</p>
+              <p className="text-sm text-neutral-500 mt-1">Tributes</p>
             </div>
 
             <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
-              <p className="text-3xl font-bold">2</p>
-              <p className="text-sm text-neutral-500 mt-1">Incidents</p>
+              <p className="text-3xl font-bold">{data?.aggregate.totalPhotos ?? 0}</p>
+              <p className="text-sm text-neutral-500 mt-1">Photos</p>
             </div>
 
             <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
-              <p className="text-3xl font-bold text-[#c3195d]">
-                RM 2,240
-              </p>
-              <p className="text-sm text-neutral-500 mt-1">Payments</p>
+              {storage === null ? (
+                <>
+                  <div className="h-9 w-32 animate-pulse rounded bg-neutral-100" />
+                  <div className="mt-2 h-4 w-24 animate-pulse rounded bg-neutral-100" />
+                </>
+              ) : (
+                <>
+                  <p
+                    className={`text-3xl font-bold ${
+                      storageOver ? 'text-red-600' : 'text-[#c3195d]'
+                    }`}
+                  >
+                    {storageUsedMb}
+                    <span className="text-lg font-medium text-neutral-400">
+                      {storageTotalMb > 0 ? <> / {storageTotalMb} MB</> : <> MB used</>}
+                    </span>
+                  </p>
+                  <p className="text-sm text-neutral-500 mt-1">
+                    Storage &middot; {storagePlan} plan
+                  </p>
+                  {storageTotalMb > 0 && (
+                    <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-neutral-100">
+                      <div
+                        className={`h-full rounded-full ${
+                          storageOver ? 'bg-red-600' : 'bg-[#c3195d]'
+                        }`}
+                        style={{ width: `${storagePct}%` }}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>
 
-        {/* QUICK ACCESS */}
+        {/* MY MEMORIALS */}
         <div>
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-[#c3195d] mb-3">
-            Quick Access
-          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-[#c3195d]">
+              My Memorials
+            </h3>
+            <button
+              onClick={() => router.push('/module/admin')}
+              className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg border border-[#c3195d] text-[#c3195d] hover:bg-pink-50 transition-colors"
+            >
+              <Plus size={14} />
+              Add Memorial
+            </button>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {quickModules.map((item) => {
-              const Icon = item.icon;
-
-              return (
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[0, 1].map((i) => (
                 <div
-                  key={item.title}
-                  onClick={() => router.push(item.path)}
-                  className="
-                    group
-                    bg-white
-                    border
-                    border-neutral-200
-                    rounded-xl
-                    p-5
-                    cursor-pointer
-                    transition-all
-                    duration-200
-                    hover:shadow-md
-                    hover:-translate-y-1
-                    hover:border-[#c3195d]/30
-                  "
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="w-11 h-11 rounded-lg bg-pink-50 text-[#c3195d] flex items-center justify-center shrink-0">
-                      <Icon size={20} />
-                    </div>
-
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-semibold text-neutral-900 group-hover:text-[#c3195d] transition-colors">
-                          {item.title}
-                        </h4>
-
-                        <ArrowRight
-                          size={16}
-                          className="
-                            text-neutral-400
-                            group-hover:text-[#c3195d]
-                            group-hover:translate-x-1
-                            transition-all
-                          "
-                        />
+                  key={i}
+                  className="bg-white rounded-xl border border-neutral-200 p-5 h-28 animate-pulse"
+                />
+              ))}
+            </div>
+          ) : data && data.memorials.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {data.memorials.map((m) => {
+                const isActive = m.numberList === activeMemorial?.numberList;
+                return (
+                  <div
+                    key={m.numberList}
+                    onClick={() =>
+                      setActiveMemorial({ numberList: m.numberList, name: m.name })
+                    }
+                    className={`bg-white rounded-xl border p-4 cursor-pointer transition-all duration-200 hover:shadow-md ${
+                      isActive
+                        ? 'border-[#c3195d] ring-1 ring-[#c3195d]'
+                        : 'border-neutral-200'
+                    }`}
+                  >
+                    <div className="flex gap-3 items-start">
+                      <div className="w-11 h-11 rounded-full bg-neutral-100 flex items-center justify-center shrink-0 overflow-hidden">
+                        {m.photoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={m.photoUrl}
+                            alt={m.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <User size={20} className="text-neutral-400" />
+                        )}
                       </div>
 
-                      <p className="text-sm text-neutral-500 mt-1 leading-relaxed">
-                        {item.desc}
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-neutral-900 text-sm">{m.name}</p>
+                        <p className="text-xs text-neutral-500 mt-1">
+                          Date of Departure: {formatDate(m.dateOfDeparture)}
+                        </p>
+                        <p className="text-xs text-neutral-500">
+                          Place of Rest: {m.placeOfRest || '—'}
+                        </p>
+
+                        <div className="flex gap-2 mt-3">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (MEMORIAL_SITE_URL) {
+                                window.open(
+                                  `${MEMORIAL_SITE_URL}/${m.urlName}`,
+                                  '_blank'
+                                );
+                              }
+                            }}
+                            disabled={!MEMORIAL_SITE_URL}
+                            title="View public site"
+                            className="w-8 h-8 rounded-lg bg-pink-50 text-[#c3195d] flex items-center justify-center disabled:opacity-40"
+                          >
+                            <ExternalLink size={15} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/module/obituary?memorial=${m.numberList}`);
+                            }}
+                            title="Obituary"
+                            className="w-8 h-8 rounded-lg bg-pink-50 text-[#c3195d] flex items-center justify-center"
+                          >
+                            <FileText size={15} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/module/admin?memorial=${m.numberList}`);
+                            }}
+                            title="Edit in Admin"
+                            className="w-8 h-8 rounded-lg bg-pink-50 text-[#c3195d] flex items-center justify-center"
+                          >
+                            <Edit size={15} />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-neutral-200 p-10 text-center">
+              <p className="text-sm font-medium text-neutral-700">No memorials yet</p>
+              <p className="text-sm text-neutral-500 mt-1">
+                Add your first memorial to get started.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* ACCOUNT INFORMATION */}
+        <div>
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-[#c3195d] mb-3">
+            Account Information
+            {activeMemorial && (
+              <span className="text-neutral-400 font-normal normal-case tracking-normal">
+                {' '}
+                — currently viewing {activeMemorial.name}
+              </span>
+            )}
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
+              <div className="flex items-center gap-2 text-[#c3195d]">
+                <Heart size={16} />
+                <span className="text-sm text-neutral-500">Tributes</span>
+              </div>
+              <p className="text-2xl font-semibold mt-2">
+                {activeStats?.tributes.count ?? 0}
+              </p>
+              <p className="text-xs text-neutral-400 mt-1">
+                {activeStats?.tributes.latest
+                  ? `Latest ${formatDate(activeStats.tributes.latest)}`
+                  : 'No tributes yet'}
+              </p>
+            </div>
+
+            <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
+              <div className="flex items-center gap-2 text-[#c3195d]">
+                <ImageIcon size={16} />
+                <span className="text-sm text-neutral-500">Photos</span>
+              </div>
+              <p className="text-2xl font-semibold mt-2">
+                {activeStats?.photos.count ?? 0}
+              </p>
+              <p className="text-xs text-neutral-400 mt-1">
+                {activeStats?.photos.latest
+                  ? `Last added ${formatDate(activeStats.photos.latest)}`
+                  : 'No photos yet'}
+              </p>
+            </div>
+
+            <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
+              <div className="flex items-center gap-2 text-[#c3195d]">
+                <Video size={16} />
+                <span className="text-sm text-neutral-500">Videos</span>
+              </div>
+              <p className="text-2xl font-semibold mt-2">
+                {activeStats?.videos.count ?? 0}
+              </p>
+              <p className="text-xs text-neutral-400 mt-1">No videos yet</p>
+            </div>
           </div>
         </div>
 
-        {/* BOTTOM SECTION */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Recent Activity */}
-          <div className="lg:col-span-2 bg-white border border-neutral-200 rounded-xl p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-5">
-              <Activity size={18} className="text-[#c3195d]" />
-              <h3 className="font-semibold">Recent Activity</h3>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <Bell size={16} className="text-[#c3195d] mt-1" />
-                <div>
-                  <p className="text-sm font-medium">
-                    New registration submitted
-                  </p>
-                  <p className="text-xs text-neutral-500">
-                    10 minutes ago
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <Bell size={16} className="text-[#c3195d] mt-1" />
-                <div>
-                  <p className="text-sm font-medium">
-                    Payment received (RM200)
-                  </p>
-                  <p className="text-xs text-neutral-500">
-                    45 minutes ago
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <Bell size={16} className="text-[#c3195d] mt-1" />
-                <div>
-                  <p className="text-sm font-medium">
-                    Incident report updated
-                  </p>
-                  <p className="text-xs text-neutral-500">
-                    1 hour ago
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <Bell size={16} className="text-[#c3195d] mt-1" />
-                <div>
-                  <p className="text-sm font-medium">
-                    Public prayer request approved
-                  </p>
-                  <p className="text-xs text-neutral-500">
-                    2 hours ago
-                  </p>
-                </div>
-              </div>
-            </div>
+        {/* RECENT ACTIVITY */}
+        <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-sm">
+          <div className="flex items-center gap-2 mb-5">
+            <Bell size={18} className="text-[#c3195d]" />
+            <h3 className="font-semibold">Recent Activity</h3>
           </div>
 
-          {/* System Status */}
-          <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-sm">
-            <h3 className="font-semibold mb-5">
-              System Status
-            </h3>
-
+          {data && data.activity.length > 0 ? (
             <div className="space-y-4">
-              <div className="flex items-center justify-between text-sm">
-                <span>Database</span>
-                <span className="flex items-center gap-2 text-emerald-600 font-medium">
-                  <CheckCircle2 size={15} />
-                  Online
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <span>API Layer</span>
-                <span className="flex items-center gap-2 text-emerald-600 font-medium">
-                  <CheckCircle2 size={15} />
-                  Stable
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <span>File Storage</span>
-                <span className="flex items-center gap-2 text-emerald-600 font-medium">
-                  <CheckCircle2 size={15} />
-                  Normal
-                </span>
-              </div>
+              {data.activity.map((item, idx) => (
+                <div key={idx} className="flex items-start gap-3">
+                  <Bell size={16} className="text-[#c3195d] mt-1" />
+                  <div>
+                    <p className="text-sm font-medium">{item.message}</p>
+                    <p className="text-xs text-neutral-500">{formatDate(item.date)}</p>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
+          ) : (
+            <p className="text-sm text-neutral-500">No recent activity yet.</p>
+          )}
         </div>
 
         {/* Footer */}
