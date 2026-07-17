@@ -2,6 +2,7 @@ import { Column } from '@/components/table/DataTableWithColumnSearch';
 import { Eye } from 'lucide-react';
 
 export interface Obituary {
+  id: number;
   number_list: number;
   create_date: string;
   mf_fullname: string;
@@ -10,8 +11,7 @@ export interface Obituary {
 }
 
 export const obituaryColumns = (
-  handlePreview: (row: Obituary) => void | Promise<void>,
-  handleView: (id: number) => void
+  handlePreview: (row: Obituary) => void | Promise<void>
 ): Column<Obituary>[] => [
   {
     key: 'number_list',
@@ -71,23 +71,12 @@ export const obituaryColumns = (
     position: 'middle',
     sortable: false, // actions column should NOT be sortable
 
-    render: (row: Obituary) => (
-      <div className="flex justify-center">
-        <button
-          onClick={() => handlePreview(row)}
-          className="flex items-center justify-center gap-1 text-[#c3195d] hover:underline"
-        >
-          <Eye className="w-4 h-4" />
-        </button>
-      </div>
-    ),
-
     actions: [
       {
         icon: Eye,
         variant: 'primary',
-        tooltip: 'View Incident',
-        onClick: (row) => handleView(row.number_list),
+        tooltip: 'Preview Obituary',
+        onClick: (row) => handlePreview(row),
       },
     ],
   },

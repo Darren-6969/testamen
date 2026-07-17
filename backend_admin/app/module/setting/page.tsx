@@ -2,7 +2,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Settings, User, Lock } from "lucide-react";
+import { Settings, User, Lock, KeySquare, GitBranch, UsersRound  } from "lucide-react";
 import PageHeader from "@/components/header/PageHeader";
 
 export default function DashboardPage() {
@@ -14,7 +14,7 @@ export default function DashboardPage() {
       description: "Update your name, phone, and contact details.",
       icon: User,
       onClick: () => {
-        router.push("/module/customer-profile");
+        router.push("/module/setting/profile");
       },
     },
     {
@@ -23,6 +23,30 @@ export default function DashboardPage() {
       icon: Lock,
       onClick: () => {
         router.push("/module/setting/change-password");
+      },
+    },
+    {
+      title: "Preset Role Access",
+      description: "Control which roles can access which modules.",
+      icon: KeySquare,
+      onClick: () => {
+        router.push("/module/setting/preset-role-access");
+      },
+    },
+    {
+      title: "Customer Grouping",
+      description: "Manage customer groups and view customers in each group.",
+      icon: UsersRound,
+      onClick: () => {
+        router.push("/module/setting/customer-groups");
+      },
+    },
+    {
+      title: "Preset Location",
+      description: "Set default location and manage branch access settings.",
+      icon: GitBranch,
+      onClick: () => {
+        router.push("/module/setting/preset-branch");
       },
     },
   ];

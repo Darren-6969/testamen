@@ -77,7 +77,7 @@ export function useLoginForm() {
         } else {
           localStorage.removeItem(REMEMBER_ME_STORAGE_KEY);
         }
-        storeSessionAccessToken(response.token);
+        storeSessionAccessToken(response.token, response.refreshToken);
         router.push(consumePostLoginRedirect() || '/module/dashboard');
       } else {
         setError(response.message || 'Login failed');

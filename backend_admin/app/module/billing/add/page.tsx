@@ -8,26 +8,17 @@ import { toast } from 'sonner';
 import { createBilling } from '@/app/data/billing';
 
 const PACKAGES = [
-  {
-    code: 'FREE',
-    name: 'Free Plan',
-    amount: 0,
-  },
-  {
-    code: 'STANDARD',
-    name: 'Standard',
-    amount: 20,
-  },
-  {
-    code: 'PLUS',
-    name: 'Plus',
-    amount: 200,
-  },
-  {
-    code: 'PREMIUM',
-    name: 'Premium',
-    amount: 200,
-  },
+  { code: 'FREE', name: 'Free Plan', amount: 0 },
+  { code: 'STANDARD', name: 'Standard', amount: 20 },
+  { code: 'PLUS', name: 'Plus', amount: 200 },
+  { code: 'PREMIUM', name: 'Premium', amount: 200 },
+];
+
+const PAYMENT_METHODS = [
+  { value: 'Cash', label: 'Cash' },
+  { value: 'Card', label: 'Card' },
+  { value: 'Online Transfer', label: 'Online Transfer' },
+  { value: 'E-Wallet', label: 'E-Wallet' },
 ];
 
 export default function AddBillPage() {
@@ -45,15 +36,11 @@ export default function AddBillPage() {
   const [saving, setSaving] = useState(false);
 
   const handleChange = (key: string, value: string) => {
-    setForm((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+    setForm((prev) => ({ ...prev, [key]: value }));
   };
 
   const handlePackageChange = (packageCode: string) => {
     const selected = PACKAGES.find((p) => p.code === packageCode);
-
     setForm((prev) => ({
       ...prev,
       package: packageCode,
@@ -72,11 +59,13 @@ export default function AddBillPage() {
     setSaving(true);
 
     try {
+      
       const result = await createBilling({
-        bill_name: `${form.user} - ${form.package}`,
-        amount: Number(form.amount),
-        email: null,
-        description: JSON.stringify(form),
+        fullname: form.user,
+        plan_code: form.package,
+        amount_rm: Number(form.amount),
+        payment_method: form.status === 'Paid' ? form.payment_method || null : null,
+        status: form.status,
       });
 
       if (!result?.success) {
@@ -131,7 +120,6 @@ export default function AddBillPage() {
                 className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-[#c3195d] focus:ring-2 focus:ring-[#c3195d]/20"
               >
                 <option value="">Select package</option>
-
                 {PACKAGES.map((pkg) => (
                   <option key={pkg.code} value={pkg.code}>
                     {pkg.name}
@@ -145,7 +133,6 @@ export default function AddBillPage() {
               <label className="mb-2 block text-sm font-semibold text-gray-700">
                 Amount (RM) <span className="text-red-500">*</span>
               </label>
-
               <input
                 type="number"
                 value={form.amount}
@@ -157,10 +144,7 @@ export default function AddBillPage() {
 
             {/* STATUS */}
             <div>
-              <label className="mb-2 block text-sm font-semibold text-gray-700">
-                Status
-              </label>
-
+              <label className="mb-2 block text-sm font-semibold text-gray-700">Status</label>
               <select
                 value={form.status}
                 onChange={(e) => handleChange('status', e.target.value)}
@@ -178,28 +162,28 @@ export default function AddBillPage() {
                   <label className="mb-2 block text-sm font-semibold text-gray-700">
                     Payment Method
                   </label>
-
-                  <input
+                  <select
                     value={form.payment_method}
-                    onChange={(e) =>
-                      handleChange('payment_method', e.target.value)
-                    }
+                    onChange={(e) => handleChange('payment_method', e.target.value)}
                     className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-[#c3195d] focus:ring-2 focus:ring-[#c3195d]/20"
-                    placeholder="Cash / Card / Online Transfer"
-                  />
+                  >
+                    <option value="">Select payment method</option>
+                    {PAYMENT_METHODS.map((pm) => (
+                      <option key={pm.value} value={pm.value}>
+                        {pm.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-gray-700">
                     Payment Date
                   </label>
-
                   <input
                     type="date"
                     value={form.payment_date}
-                    onChange={(e) =>
-                      handleChange('payment_date', e.target.value)
-                    }
+                    onChange={(e) => handleChange('payment_date', e.target.value)}
                     className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-[#c3195d] focus:ring-2 focus:ring-[#c3195d]/20"
                   />
                 </div>

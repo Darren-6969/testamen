@@ -10,31 +10,30 @@ export interface Billing {
   status: string;
 }
 
-/**
- * DTO for creating billing (matches Add Bill form)
- */
+// DTO for creating billing (matches Add Bill form + mt_payment_plan columns)
 export interface CreateBillingDTO {
-  bill_name: string;
-  amount: number;
+  fullname: string;
+  plan_code: string;
+  amount_rm: number;
+  currency?: string;
+  payment_method?: string | null;
+  status?: string;
   email?: string | null;
-  description?: string | null;
+  phone?: string | null;
 }
 
-/**
- * DTO for updating billing (partial allowed)
- */
+// DTO for updating billing (partial allowed)
 export interface UpdateBillingDTO {
-  bill_name?: string;
-  amount?: number;
+  fullname?: string;
+  plan_code?: string;
+  amount_rm?: number;
   email?: string | null;
-  description?: string | null;
+  phone?: string | null;
   payment_method?: string;
   status?: string;
 }
 
-/**
- * Fetch all billing records
- */
+// Fetch all billing records
 export async function fetchBilling(): Promise<Billing[]> {
   try {
     const res = await fetch('/api/billing/list', {
@@ -56,9 +55,7 @@ export async function fetchBilling(): Promise<Billing[]> {
   }
 }
 
-/**
- * Fetch single billing record by ID
- */
+// Fetch single billing record by ID
 export async function fetchBillingById(id: number): Promise<Billing | null> {
   try {
     const res = await fetch(`/api/billing/${id}`, {
@@ -80,9 +77,7 @@ export async function fetchBillingById(id: number): Promise<Billing | null> {
   }
 }
 
-/**
- * Create new billing record
- */
+// Create new billing record
 export async function createBilling(data: CreateBillingDTO) {
   try {
     const res = await fetch('/api/billing', {
@@ -104,13 +99,8 @@ export async function createBilling(data: CreateBillingDTO) {
   }
 }
 
-/**
- * Update billing record
- */
-export async function updateBilling(
-  id: number,
-  data: UpdateBillingDTO
-) {
+// Update billing record
+export async function updateBilling(id: number, data: UpdateBillingDTO) {
   try {
     const res = await fetch(`/api/billing/${id}`, {
       method: 'PUT',
@@ -131,9 +121,7 @@ export async function updateBilling(
   }
 }
 
-/**
- * Delete billing record
- */
+// Soft delete billing record (sets is_show = false server-side; row is not removed and can be restored)
 export async function deleteBilling(id: number): Promise<boolean> {
   try {
     const res = await fetch(`/api/billing/${id}`, {
@@ -143,6 +131,20 @@ export async function deleteBilling(id: number): Promise<boolean> {
     return res.ok;
   } catch (error) {
     console.error('deleteBilling error:', error);
+    return false;
+  }
+}
+
+// Restore a soft-deleted billing record (sets is_show = true again)
+export async function restoreBilling(id: number): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/billing/${id}/restore`, {
+      method: 'PATCH',
+    });
+
+    return res.ok;
+  } catch (error) {
+    console.error('restoreBilling error:', error);
     return false;
   }
 }

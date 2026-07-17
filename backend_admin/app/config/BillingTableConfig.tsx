@@ -1,8 +1,9 @@
 import { Column } from '../../components/table/DataTableWithColumnSearch';
-import { Trash } from 'lucide-react';
+import { Trash, Pencil } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export interface Billing {
+  id: number;
   number_list: number;
   invoice_no: string;
   fullname: string;
@@ -12,6 +13,13 @@ export interface Billing {
   payment_method: string;
   status: string;
 }
+
+const formatPackageName = (value: string) =>
+  (value ?? '')
+    .toLowerCase()
+    .split(' ')
+    .map((word) => (word ? word[0].toUpperCase() + word.slice(1) : word))
+    .join(' ');
 
 export const billingTableColumns = (
   router: ReturnType<typeof useRouter>,
@@ -49,7 +57,8 @@ export const billingTableColumns = (
     position: 'middle',
     sortable: true,
     sortFn: (a, b) =>
-      (a.plan_code ?? '').localeCompare(b.plan_code ?? ''),
+      formatPackageName(a.plan_code).localeCompare(formatPackageName(b.plan_code)),
+    render: (row: Billing) => formatPackageName(row.plan_code),
   },
 
   {
@@ -95,44 +104,50 @@ export const billingTableColumns = (
   },
 
   {
-  key: 'status',
-  label: 'PAYMENT STATUS',
-  position: 'middle',
-  sortable: true,
-  sortFn: (a, b) =>
-    (a.status ?? '').localeCompare(b.status ?? ''),
+    key: 'status',
+    label: 'PAYMENT STATUS',
+    position: 'middle',
+    sortable: true,
+    sortFn: (a, b) =>
+      (a.status ?? '').localeCompare(b.status ?? ''),
 
-  render: (row) => {
-    const statusStyle: Record<string, string> = {
-      paid: 'bg-green-100 text-green-700 border-green-200',
-      pending: 'bg-yellow-100 text-yellow-700 border-yellow-200 animate-pulse',
-      unpaid: 'bg-red-100 text-red-700 border-red-200',
-    };
+    render: (row) => {
+      const statusStyle: Record<string, string> = {
+        paid: 'bg-green-100 text-green-700 border-green-200',
+        pending: 'bg-yellow-100 text-yellow-700 border-yellow-200 animate-pulse',
+        unpaid: 'bg-red-100 text-red-700 border-red-200',
+      };
 
-    const style =
-      statusStyle[row.status] ??
-      'bg-gray-100 text-gray-600 border-gray-200';
+      const style =
+        statusStyle[(row.status ?? '').toLowerCase()] ??
+        'bg-gray-100 text-gray-600 border-gray-200';
 
-    return (
-      <span
-        className={`px-3 py-1 rounded-full text-xs font-semibold border ${style}`}
-      >
-        {row.status}
-      </span>
-    );
+      return (
+        <span
+          className={`px-3 py-1 rounded-full text-xs font-semibold border ${style}`}
+        >
+          {row.status}
+        </span>
+      );
+    },
   },
-},
 
   {
     key: 'action' as any,
     label: 'ACTION',
     position: 'middle',
-    sortable: false, // IMPORTANT
+    sortable: false, 
 
     render: (row) => (
       <div className="flex items-center justify-center gap-3">
         <button
-          onClick={() => handleDelete(row.number_list)}
+          onClick={() => router.push(`/module/billing/edit?id=${row.id}`)}
+          className="text-gray-500 hover:text-[#c3195d]"
+        >
+          <Pencil size={18} />
+        </button>
+        <button
+          onClick={() => handleDelete(row.id)}
           className="text-red-500 hover:text-red-700"
         >
           <Trash size={18} />
@@ -142,10 +157,16 @@ export const billingTableColumns = (
 
     actions: [
       {
+        icon: Pencil,
+        variant: 'default',
+        tooltip: 'Edit Billing',
+        onClick: (row) => router.push(`/module/billing/edit?id=${row.id}`),
+      },
+      {
         icon: Trash,
         variant: 'danger',
         tooltip: 'Delete Billing',
-        onClick: (row) => handleDelete(row.number_list),
+        onClick: (row) => handleDelete(row.id),
       },
     ],
   },

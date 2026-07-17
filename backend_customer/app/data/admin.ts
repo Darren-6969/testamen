@@ -235,9 +235,18 @@ export async function fetchPhotos(memorialId: string, albumId?: string): Promise
 export async function uploadPhotos(
   memorialId: string,
   files: FileList | File[],
-  albumId?: string
+  opts?: { albumId?: string; descriptions?: string[] }
 ): Promise<Result> {
-  return upload('/api/admin/photos/upload', memorialId, files, albumId ? { albumId } : undefined);
+  const extra: Record<string, string> = {};
+  if (opts?.albumId) extra.albumId = opts.albumId;
+  // JSON array, index-matched to file order (see adminHelpers.parseDescriptions)
+  if (opts?.descriptions) extra.descriptions = JSON.stringify(opts.descriptions);
+  return upload(
+    '/api/admin/photos/upload',
+    memorialId,
+    files,
+    Object.keys(extra).length ? extra : undefined
+  );
 }
 // add existing photos to an album (link -- photos stay in Photos section)
 export async function addPhotosToAlbum(
@@ -267,8 +276,19 @@ export async function updateAlbum(
 export async function fetchVideos(memorialId: string): Promise<VideoItem[]> {
   return getJson<VideoItem[]>(`/api/admin/videos/${encodeURIComponent(memorialId)}`, []);
 }
-export async function uploadVideos(memorialId: string, files: FileList | File[]): Promise<Result> {
-  return upload('/api/admin/videos/upload', memorialId, files);
+export async function uploadVideos(
+  memorialId: string,
+  files: FileList | File[],
+  opts?: { descriptions?: string[] }
+): Promise<Result> {
+  const extra: Record<string, string> = {};
+  if (opts?.descriptions) extra.descriptions = JSON.stringify(opts.descriptions);
+  return upload(
+    '/api/admin/videos/upload',
+    memorialId,
+    files,
+    Object.keys(extra).length ? extra : undefined
+  );
 }
 
 // ------------------------------------------------------------- approval

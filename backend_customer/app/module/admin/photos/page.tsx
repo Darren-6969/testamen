@@ -38,6 +38,7 @@ import StorageQuotaDialog from '@/components/setting/StorageQuotaDialog';
 import SectionLabel from '@/components/admin/SectionLabel';
 import Thumb from '@/components/admin/Thumb';
 import Lightbox from '@/components/admin/Lightbox';
+import UploadDialog from '@/components/admin/UploadDialog';
 import ConfirmDialog, { ConfirmData } from '@/components/admin/ConfirmDialog';
 
 const uploadTile =
@@ -53,7 +54,7 @@ export default function PhotosTab() {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const [lightbox, setLightbox] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<{ src: string; caption?: string } | null>(null);
 
   // create-album modal
   const [createOpen, setCreateOpen] = useState(false);
@@ -83,6 +84,10 @@ export default function PhotosTab() {
   // storage quota rejection / partial accept
   const [quotaError, setQuotaError] = useState<Result | null>(null);
 
+  // Files picked but not yet uploaded, held while the dialog collects
+  // descriptions. albumId set => they're destined for an album.
+  const [pending, setPending] = useState<{ files: File[]; albumId?: string } | null>(null);
+
   const bgInput = useRef<HTMLInputElement>(null);
   const photoInput = useRef<HTMLInputElement>(null);
   const albumUploadInput = useRef<HTMLInputElement>(null);
@@ -109,22 +114,24 @@ export default function PhotosTab() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      if (lightbox) setLightbox(null);
+      // checked in z-order, topmost first; never cancel mid-upload
+      if (pending) {
+        if (!busy && !albumBusy) setPending(null);
+      } else if (lightbox) setLightbox(null);
       else if (pickerOpen) setPickerOpen(false);
       else if (createOpen) setCreateOpen(false);
       else if (openAlbum) setOpenAlbum(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [lightbox, pickerOpen, createOpen, openAlbum]);
+  }, [lightbox, pickerOpen, createOpen, openAlbum, pending, busy, albumBusy]);
 
-  const onUpload = async (
-    files: FileList | null,
-    fn: (id: string, f: FileList) => Promise<Result>
-  ) => {
+  // Backgrounds upload immediately -- mt_memorial_background has no description
+  // column, so there's nothing to caption.
+  const onUploadBackgrounds = async (files: FileList | null) => {
     if (!files || !files.length) return;
     setBusy(true);
-    const res = await fn(memorialId, files);
+    const res = await uploadBackgrounds(memorialId, files);
     setBusy(false);
 
     // Usage changed either way (files landed, or the attempt revealed a stale
@@ -141,6 +148,54 @@ export default function PhotosTab() {
       toast.success('Uploaded');
       load();
     } else toast.error(res.message || 'Upload failed');
+  };
+
+  // Photos stage first; nothing uploads until Save in the description dialog.
+  // Used by both the Photos grid and the album detail modal -- albumId is what
+  // tells them apart.
+  const stagePhotos = (files: FileList | null, albumId?: string) => {
+    if (!files || !files.length) return;
+    setPending({ files: Array.from(files), albumId });
+  };
+
+  const doUploadPhotos = async (descriptions: string[]) => {
+    if (!pending) return;
+    const toAlbum = Boolean(pending.albumId);
+    toAlbum ? setAlbumBusy(true) : setBusy(true);
+    const res = await uploadPhotos(memorialId, pending.files, {
+      albumId: pending.albumId,
+      descriptions,
+    });
+    toAlbum ? setAlbumBusy(false) : setBusy(false);
+
+    await refresh();
+
+    // Refresh the open album's grid as well as the main one -- a photo added
+    // from the album modal has to appear in both.
+    const reload = async () => {
+      if (toAlbum && openAlbum) setAlbumPhotos(await fetchPhotos(memorialId, openAlbum.id));
+      load();
+    };
+
+    if (res.code === QUOTA_PARTIAL) {
+      // Close the dialog before showing the quota one: StorageQuotaDialog is
+      // z-50 and UploadDialog is z-[55], so leaving it mounted would bury the
+      // quota dialog behind it.
+      setPending(null);
+      await reload();
+      setQuotaError(res);
+    } else if (res.code === QUOTA_EXCEEDED) {
+      setPending(null);
+      setQuotaError(res);
+    } else if (res.status === 'success') {
+      setPending(null);
+      toast.success(toAlbum ? 'Added to album' : 'Uploaded');
+      await reload();
+    } else {
+      // Ordinary failure -> keep the dialog open so typed descriptions survive
+      // a retry. Only the quota paths above have to close it.
+      toast.error(res.message || 'Upload failed');
+    }
   };
 
   const remove = async (kind: 'background' | 'photo', id: string) => {
@@ -212,26 +267,8 @@ export default function PhotosTab() {
     } else toast.error(res.message || 'Failed');
   };
 
-  const uploadNewToAlbum = async (files: FileList | null) => {
-    if (!files || !files.length || !openAlbum) return;
-    setAlbumBusy(true);
-    const res = await uploadPhotos(memorialId, files, openAlbum.id);
-    setAlbumBusy(false);
-
-    await refresh();
-
-    if (res.code === QUOTA_PARTIAL) {
-      setAlbumPhotos(await fetchPhotos(memorialId, openAlbum.id));
-      load();
-      setQuotaError(res);
-    } else if (res.code === QUOTA_EXCEEDED) {
-      setQuotaError(res);
-    } else if (res.status === 'success') {
-      toast.success('Added to album');
-      setAlbumPhotos(await fetchPhotos(memorialId, openAlbum.id));
-      load();
-    } else toast.error(res.message || 'Upload failed');
-  };
+  // Album uploads now stage through the description dialog too -- see
+  // stagePhotos(files, albumId) / doUploadPhotos.
 
   const removeFromAlbum = async (id: string) => {
     if (!openAlbum) return;
@@ -284,9 +321,30 @@ export default function PhotosTab() {
 
   return (
     <div className="space-y-5">
-      <input ref={bgInput} type="file" accept="image/*" multiple hidden onChange={(e) => onUpload(e.target.files, uploadBackgrounds).then(() => (e.target.value = ''))} />
-      <input ref={photoInput} type="file" accept="image/*" multiple hidden onChange={(e) => onUpload(e.target.files, uploadPhotos).then(() => (e.target.value = ''))} />
-      <input ref={albumUploadInput} type="file" accept="image/*" multiple hidden onChange={(e) => uploadNewToAlbum(e.target.files).then(() => (e.target.value = ''))} />
+      <input ref={bgInput} type="file" accept="image/*" multiple hidden onChange={(e) => onUploadBackgrounds(e.target.files).then(() => (e.target.value = ''))} />
+      <input
+        ref={photoInput}
+        type="file"
+        accept="image/*"
+        multiple
+        hidden
+        onChange={(e) => {
+          stagePhotos(e.target.files);
+          // reset so picking the same file again still fires onChange
+          e.target.value = '';
+        }}
+      />
+      <input
+        ref={albumUploadInput}
+        type="file"
+        accept="image/*"
+        multiple
+        hidden
+        onChange={(e) => {
+          stagePhotos(e.target.files, openAlbum?.id);
+          e.target.value = '';
+        }}
+      />
 
       {/* Background */}
       <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
@@ -301,7 +359,7 @@ export default function PhotosTab() {
             <Upload className="h-5 w-5" /> {isFull ? 'Storage full' : 'Upload'}
           </button>
           {backgrounds.map((b) => (
-            <Thumb key={b.id} item={b} onOpen={() => b.url && setLightbox(b.url)} onDelete={() =>
+            <Thumb key={b.id} item={b} onOpen={() => b.url && setLightbox({ src: b.url })} onDelete={() =>
               setConfirm({
                 title: 'Delete background image?',
                 message: "This removes it from the memorial's backdrop options. This can't be undone.",
@@ -358,7 +416,7 @@ export default function PhotosTab() {
             <ImagePlus className="h-5 w-5" /> {isFull ? 'Storage full' : 'Upload'}
           </button>
           {photos.map((p) => (
-            <Thumb key={p.id} item={p} onOpen={() => p.url && setLightbox(p.url)} onDelete={() =>
+            <Thumb key={p.id} item={p} onOpen={() => p.url && setLightbox({ src: p.url, caption: p.caption })} onDelete={() =>
               setConfirm({
                 title: 'Delete this photo?',
                 message: "It will be removed from the gallery and any albums it's in.",
@@ -442,7 +500,7 @@ export default function PhotosTab() {
 
             <div className="flex flex-wrap gap-3">
               {albumPhotos.map((p) => (
-                <Thumb key={p.id} item={p} onOpen={() => p.url && setLightbox(p.url)} onDelete={() =>
+                <Thumb key={p.id} item={p} onOpen={() => p.url && setLightbox({ src: p.url, caption: p.caption })} onDelete={() =>
                   setConfirm({
                     title: 'Remove from this album?',
                     message: "The photo stays in your gallery; it's only removed from this album.",
@@ -499,8 +557,21 @@ export default function PhotosTab() {
       {/* ---------- Confirm delete / remove ---------- */}
       <ConfirmDialog data={confirm} onClose={() => setConfirm(null)} />
 
+      {/* ---------- Upload + description ---------- */}
+      {pending && (
+        <UploadDialog
+          files={pending.files}
+          kind="photo"
+          busy={pending.albumId ? albumBusy : busy}
+          onCancel={() => setPending(null)}
+          onSave={doUploadPhotos}
+        />
+      )}
+
       {/* ---------- Lightbox ---------- */}
-      {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} />}
+      {lightbox && (
+        <Lightbox src={lightbox.src} caption={lightbox.caption} onClose={() => setLightbox(null)} />
+      )}
 
       {/* ---------- Storage quota ---------- */}
       <StorageQuotaDialog

@@ -17,6 +17,7 @@ import { useStorage } from '@/app/context/StorageContext';
 import StorageQuotaDialog from '@/components/setting/StorageQuotaDialog';
 import { formatBytes } from '@/app/lib/format';
 import MediaPreview from '@/components/admin/MediaPreview';
+import UploadDialog from '@/components/admin/UploadDialog';
 import ConfirmDialog, { ConfirmData } from '@/components/admin/ConfirmDialog';
 
 export default function VideosTab() {
@@ -29,6 +30,9 @@ export default function VideosTab() {
   const [preview, setPreview] = useState<VideoItem | null>(null);
   const [confirm, setConfirm] = useState<ConfirmData | null>(null);
   const [quotaError, setQuotaError] = useState<Result | null>(null);
+  // Files picked but not yet uploaded — held here while the dialog collects
+  // descriptions. Null means no dialog.
+  const [pending, setPending] = useState<File[] | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const load = async () => {
@@ -43,10 +47,16 @@ export default function VideosTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memorialId]);
 
-  const onFiles = async (files: FileList | null) => {
+  // Picking files only stages them -- nothing uploads until Save in the dialog.
+  const onFiles = (files: FileList | null) => {
     if (!files || !files.length) return;
+    setPending(Array.from(files));
+  };
+
+  const doUpload = async (descriptions: string[]) => {
+    if (!pending) return;
     setBusy(true);
-    const res = await uploadVideos(memorialId, files);
+    const res = await uploadVideos(memorialId, pending, { descriptions });
     setBusy(false);
 
     // Usage changed either way (files landed, or the attempt revealed a stale
@@ -55,14 +65,23 @@ export default function VideosTab() {
 
     if (res.code === QUOTA_PARTIAL) {
       // Some files did land -> refresh the grid AND explain the skipped ones.
+      // Close the dialog first: StorageQuotaDialog is z-50 and UploadDialog is
+      // z-[55], so leaving it mounted would hide the quota dialog behind it.
+      setPending(null);
       load();
       setQuotaError(res);
     } else if (res.code === QUOTA_EXCEEDED) {
+      setPending(null);
       setQuotaError(res);
     } else if (res.status === 'success') {
+      setPending(null);
       toast.success('Uploaded');
       load();
-    } else toast.error(res.message || 'Upload failed');
+    } else {
+      // Ordinary failure -> keep the dialog open so typed descriptions survive
+      // a retry. Only the quota paths above have to close it.
+      toast.error(res.message || 'Upload failed');
+    }
   };
 
   const remove = async (id: string) => {
@@ -96,7 +115,11 @@ export default function VideosTab() {
         accept="video/*,audio/*"
         multiple
         hidden
-        onChange={(e) => onFiles(e.target.files).then(() => (e.target.value = ''))}
+        onChange={(e) => {
+          onFiles(e.target.files);
+          // reset so picking the same file again still fires onChange
+          e.target.value = '';
+        }}
       />
 
       {loading ? (
@@ -178,6 +201,17 @@ export default function VideosTab() {
 
       {/* ---------- Confirm delete ---------- */}
       <ConfirmDialog data={confirm} onClose={() => setConfirm(null)} />
+
+      {/* ---------- Upload + description ---------- */}
+      {pending && (
+        <UploadDialog
+          files={pending}
+          kind="video"
+          busy={busy}
+          onCancel={() => setPending(null)}
+          onSave={doUpload}
+        />
+      )}
 
       {/* ---------- Storage quota ---------- */}
       <StorageQuotaDialog

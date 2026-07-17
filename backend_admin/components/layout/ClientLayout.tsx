@@ -8,7 +8,6 @@ import MainLayout from './MainLayout';
 import SessionExpiryWarning from './SessionExpiryWarning';
 import { Toaster } from 'sonner';
 import { handleSessionExpired } from '@/app/lib/session-expiration';
-import { ActiveMemorialProvider } from '@/app/context/ActiveMemorialContext';
 
 const AUTH_ENDPOINTS = [
   '/api/auth/login',
@@ -108,10 +107,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   }, [pathname]);
 
   return (
-    <ActiveMemorialProvider>
+    <>
       {useMainLayout ? <MainLayout>{children}</MainLayout> : children}
       <SessionExpiryWarning enabled={!!useMainLayout} />
       <Toaster position="top-right" richColors />
-    </ActiveMemorialProvider>
+    </>
   );
 }

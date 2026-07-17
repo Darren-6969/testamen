@@ -23,6 +23,7 @@ interface AuthResponse {
   success: boolean;
   user?: User;
   token?: string;
+  refreshToken?: string;
   rememberMe?: boolean;
   message?: string;
 }
@@ -64,7 +65,7 @@ class AuthService {
             username: credentials.username,
             password: credentials.password,
             rememberMe: !!credentials.rememberMe,
-            portal: 'customer'
+            portal: 'admin'
           })
         });
 
@@ -74,11 +75,14 @@ class AuthService {
         }
 
         const data = await res.json();
+        const token = data.accessToken ?? data.access_token ?? data.token;
+        const refreshToken = data.refreshToken ?? data.refresh_token;
 
         return {
           success: true,
           user: data.user ?? { email: credentials.email },
-          token: data.accessToken,
+          token,
+          refreshToken,
           rememberMe: data.rememberMe,
           message: 'Login successful'
         };

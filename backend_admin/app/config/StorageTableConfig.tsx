@@ -9,7 +9,7 @@ export const storageColumns = (
 ): Column<PlanStorageItem>[] => {
 
   const handleEdit = (row: PlanStorageItem) => {
-    router.push(`/module/storage/edit`);
+    router.push(`/module/storage/edit?id=${row.id}`);
   };
 
   return [
@@ -75,7 +75,7 @@ export const storageColumns = (
       tooltip: 'Delete Storage Plan',
       onClick: (row) => {
         console.log('delete', row);
-        handleDelete(row.number_list);
+        handleDelete(row.id);
       },
     },
   ],

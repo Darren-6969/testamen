@@ -7,8 +7,8 @@ import ClientLayout from '../components/layout/ClientLayout';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Memodise Customer',
-  description: 'Customer portal for managing your own Memodise data',
+  title: 'Memodise Admin',
+  description: 'Admin portal for managing Memodise project data',
   icons: {
     icon: '/favicon.png',
   },

@@ -11,22 +11,6 @@ const AUTH_PAGE_PREFIXES = [
   "/reporter-login",
 ];
 
-const CUSTOMER_PAGE_PREFIXES = [
-  "/module/dashboard",
-  "/module/customer-profile",
-  "/module/billing",
-  "/module/obituary",
-  "/module/love-giving",
-  "/module/memorials",
-  "/module/admin",
-  "/invoice",
-];
-
-const CUSTOMER_EXACT_PAGES = [
-  "/module/setting",
-  "/module/setting/change-password",
-];
-
 const PUBLIC_FILE_REGEX =
   /\.(png|jpg|jpeg|gif|svg|webp|ico|css|js|txt|xml|json|woff|woff2|ttf|eot)$/i;
 
@@ -39,20 +23,41 @@ function decodeTokenPayload(token?: string) {
 
     const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
     const decoded = atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "="));
-    return JSON.parse(decoded) as { portal?: string; statusId?: number };
+    return JSON.parse(decoded) as {
+      portal?: string;
+      statusId?: number | string;
+      status_id?: number | string;
+    };
   } catch {
     return null;
   }
 }
 
-function isCustomerToken(token?: string) {
+function isAdminToken(token?: string) {
   const payload = decodeTokenPayload(token);
-  return payload?.portal === "customer" || payload?.statusId === 2;
+  const statusId = Number(payload?.statusId ?? payload?.status_id);
+
+  return payload?.portal === "admin" || statusId === 1;
+}
+
+function hasUsableAuthCookie(request: NextRequest) {
+  return Boolean(
+    request.cookies.get("access_token")?.value ||
+      request.cookies.get("token")?.value ||
+      request.cookies.get("auth_token")?.value ||
+      request.cookies.get("refreshToken")?.value ||
+      request.cookies.get("refresh_token")?.value
+  );
 }
 
 export function middleware(request: NextRequest) {
-  const token = request.cookies.get("access_token")?.value;
-  const refreshToken = request.cookies.get("refreshToken")?.value;
+  const token =
+    request.cookies.get("access_token")?.value ||
+    request.cookies.get("token")?.value ||
+    request.cookies.get("auth_token")?.value;
+  const refreshToken =
+    request.cookies.get("refreshToken")?.value ||
+    request.cookies.get("refresh_token")?.value;
 
   const { pathname } = request.nextUrl;
 
@@ -69,7 +74,8 @@ export function middleware(request: NextRequest) {
     (p) => pathname === p || pathname.startsWith(`${p}/`)
   );
 
-  const isAuthenticated = isCustomerToken(token) || isCustomerToken(refreshToken);
+  const isAuthenticated =
+    isAdminToken(token) || isAdminToken(refreshToken) || hasUsableAuthCookie(request);
 
   if (pathname === "/") {
     return NextResponse.redirect(
@@ -86,18 +92,6 @@ export function middleware(request: NextRequest) {
   if (!isAuthPage && !isAuthenticated) {
     return NextResponse.redirect(
       new URL("/login", request.url)
-    );
-  }
-
-  const isCustomerPage =
-    CUSTOMER_EXACT_PAGES.includes(pathname) ||
-    CUSTOMER_PAGE_PREFIXES.some(
-      (p) => pathname === p || pathname.startsWith(`${p}/`)
-    );
-
-  if (isAuthenticated && !isAuthPage && !isCustomerPage) {
-    return NextResponse.redirect(
-      new URL("/module/dashboard", request.url)
     );
   }
 

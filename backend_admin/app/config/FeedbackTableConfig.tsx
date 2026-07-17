@@ -1,25 +1,26 @@
 import { Column } from '@/components/table/DataTableWithColumnSearch';
-import { Trash } from 'lucide-react';
+import { Trash, Pencil } from 'lucide-react';
 
 export interface Feedback {
-  number_list: number;
+  id: number;
+  no?: number;
   name: string;
-  email: string;
+  email: string | null;
   message: string;
-  is_show: boolean;
 }
 
 export const feedbackColumns = (
-  handleDelete: (id: number) => void
+  handleDelete: (id: number) => void,
+  handleEdit: (id: number) => void
 ): Column<Feedback>[] => [
   {
-    key: 'number_list',
-    label: 'ID',
+    key: 'no',
+    label: 'No',
     sortable: true,
     grid: 1,
     position: 'middle',
 
-    sortFn: (a, b) => a.number_list - b.number_list,
+    sortFn: (a, b) => (a.no ?? 0) - (b.no ?? 0),
   },
 
   {
@@ -65,7 +66,13 @@ export const feedbackColumns = (
     render: (row: Feedback) => (
       <div className="flex items-center justify-center gap-3">
         <button
-          onClick={() => handleDelete(row.number_list)}
+          onClick={() => handleEdit(row.id)}
+          className="flex items-center gap-1 text-blue-600 hover:underline"
+        >
+          <Pencil className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => handleDelete(row.id)}
           className="flex items-center gap-1 text-red-600 hover:underline"
         >
           <Trash className="w-4 h-4" />
@@ -75,10 +82,16 @@ export const feedbackColumns = (
 
     actions: [
       {
+        icon: Pencil,
+        variant: 'default',
+        tooltip: 'Edit Feedback',
+        onClick: (row) => handleEdit(row.id),
+      },
+      {
         icon: Trash,
         variant: 'danger',
         tooltip: 'Delete Feedback',
-        onClick: (row) => handleDelete(row.number_list),
+        onClick: (row) => handleDelete(row.id),
       },
     ],
   },
