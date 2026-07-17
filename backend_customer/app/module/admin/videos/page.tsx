@@ -4,19 +4,31 @@ import { useEffect, useRef, useState } from 'react';
 import { Upload, Play, Trash2, Video as VideoIcon, Music } from 'lucide-react';
 import { toast } from 'sonner';
 import { useActiveMemorial } from '@/app/context/ActiveMemorialContext';
-import { fetchVideos, uploadVideos, deleteMedia, VideoItem } from '@/app/data/admin';
+import {
+  fetchVideos,
+  uploadVideos,
+  deleteMedia,
+  VideoItem,
+  Result,
+  QUOTA_EXCEEDED,
+  QUOTA_PARTIAL,
+} from '@/app/data/admin';
+import { useStorage } from '@/app/context/StorageContext';
+import StorageQuotaDialog from '@/components/setting/StorageQuotaDialog';
 import { formatBytes } from '@/app/lib/format';
 import MediaPreview from '@/components/admin/MediaPreview';
 import ConfirmDialog, { ConfirmData } from '@/components/admin/ConfirmDialog';
 
 export default function VideosTab() {
   const { activeMemorial } = useActiveMemorial();
+  const { refresh, isFull } = useStorage();
   const memorialId = activeMemorial?.numberList || '';
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<VideoItem | null>(null);
   const [confirm, setConfirm] = useState<ConfirmData | null>(null);
+  const [quotaError, setQuotaError] = useState<Result | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const load = async () => {
@@ -36,7 +48,18 @@ export default function VideosTab() {
     setBusy(true);
     const res = await uploadVideos(memorialId, files);
     setBusy(false);
-    if (res.status === 'success') {
+
+    // Usage changed either way (files landed, or the attempt revealed a stale
+    // bar), so re-read before deciding what to show.
+    await refresh();
+
+    if (res.code === QUOTA_PARTIAL) {
+      // Some files did land -> refresh the grid AND explain the skipped ones.
+      load();
+      setQuotaError(res);
+    } else if (res.code === QUOTA_EXCEEDED) {
+      setQuotaError(res);
+    } else if (res.status === 'success') {
       toast.success('Uploaded');
       load();
     } else toast.error(res.message || 'Upload failed');
@@ -47,6 +70,7 @@ export default function VideosTab() {
     if (res.status === 'success') {
       toast.success('Removed');
       load();
+      refresh(); // deleting frees quota immediately
     } else toast.error('Failed to remove');
   };
 
@@ -80,12 +104,13 @@ export default function VideosTab() {
       ) : (
         <div className="flex flex-wrap gap-4">
           <button
-            disabled={busy}
+            disabled={busy || isFull}
             onClick={() => fileInput.current?.click()}
-            className="flex h-32 w-32 flex-none flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-pink-200 text-xs text-[#b3567e] hover:bg-pink-50 disabled:opacity-50"
+            title={isFull ? 'Storage full - upgrade to upload more' : undefined}
+            className="flex h-32 w-32 flex-none flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-pink-200 text-xs text-[#b3567e] hover:bg-pink-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Upload className="h-5 w-5" />
-            Upload
+            {isFull ? 'Storage full' : 'Upload'}
           </button>
 
           {videos.map((v) => (
@@ -153,6 +178,16 @@ export default function VideosTab() {
 
       {/* ---------- Confirm delete ---------- */}
       <ConfirmDialog data={confirm} onClose={() => setConfirm(null)} />
+
+      {/* ---------- Storage quota ---------- */}
+      <StorageQuotaDialog
+        open={!!quotaError}
+        onClose={() => setQuotaError(null)}
+        message={quotaError?.message}
+        quota={quotaError ?? {}}
+        skipped={quotaError?.skipped}
+        partial={quotaError?.code === QUOTA_PARTIAL}
+      />
     </div>
   );
 }

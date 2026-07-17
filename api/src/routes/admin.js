@@ -9,6 +9,9 @@ const video = require('../controllers/videoController');
 const approval = require('../controllers/approvalController');
 const tribute = require('../controllers/tributeController');
 
+const quota = require('../middleware/quotaMiddleware');
+const { compressUploads } = require('../utils/mediaCompress');
+
 const {
   profilePicUpload,
   cemeteryUpload,
@@ -19,20 +22,27 @@ const {
 
 router.use(verifyToken);
 
+// Quota pipeline for routes that write countable bytes: preCheck -> uploader -> compressUploads -> enforce -> controller 
+// preCheck must precede the uploader (it clamps multer's per-file limit to the remaining quota); enforce must follow compressUploads (it charges the
+// post-compression size). See utils/storageQuota.js for what counts.
+const withQuota = (uploader) => [quota.preCheck, uploader, compressUploads, quota.enforce];
+
 // storage (account-level)
 router.get('/storage', storage.getStorage);
 
 // main page: profile + cemetery
 router.get('/profile/:memorialId', profile.getProfile);
 router.post('/profile/save', profile.saveProfile);
-router.post('/profile/photo', profilePicUpload, profile.uploadProfilePic);
+// NOT quota-gated: writes mt_profile.profile_pic, which has no size column and
+// is not counted by storageQuota. Still compressed.
+router.post('/profile/photo', profilePicUpload, compressUploads, profile.uploadProfilePic);
 router.get('/cemetery/:memorialId', profile.listCemetery);
-router.post('/cemetery/upload', cemeteryUpload, profile.uploadCemetery);
+router.post('/cemetery/upload', ...withQuota(cemeteryUpload), profile.uploadCemetery);
 router.delete('/cemetery/:id', profile.deleteCemetery);
 
 // photos & albums
 router.get('/background/:memorialId', media.listBackgrounds);
-router.post('/background/upload', backgroundUpload, media.uploadBackgrounds);
+router.post('/background/upload', ...withQuota(backgroundUpload), media.uploadBackgrounds);
 router.patch('/background/:id/active', media.setActiveBackground);
 router.delete('/background/:id', media.deleteBackground);
 router.get('/albums/:memorialId', media.listAlbums);
@@ -41,12 +51,12 @@ router.patch('/albums/:id', media.updateAlbum);
 router.post('/albums/link', media.addPhotosToAlbum);
 router.post('/albums/unlink', media.removePhotosFromAlbum);
 router.get('/photos/:memorialId', media.listPhotos);
-router.post('/photos/upload', photoUpload, media.uploadPhotos);
+router.post('/photos/upload', ...withQuota(photoUpload), media.uploadPhotos);
 router.delete('/photos/:id', media.deletePhoto);
 
 // videos & audios
 router.get('/videos/:memorialId', video.listVideos);
-router.post('/videos/upload', videoUpload, video.uploadVideos);
+router.post('/videos/upload', ...withQuota(videoUpload), video.uploadVideos);
 router.delete('/videos/:id', video.deleteVideo);
 
 // approval

@@ -5,6 +5,8 @@ import { Search, Trash2, MessageSquareQuote } from 'lucide-react';
 import { toast } from 'sonner';
 import { useActiveMemorial } from '@/app/context/ActiveMemorialContext';
 import { fetchTributes, deleteTribute, Tribute } from '@/app/data/admin';
+import { formatDate } from '@/app/lib/format';
+import ConfirmDialog, { ConfirmData } from '@/components/admin/ConfirmDialog';
 
 export default function TributesTab() {
   const { activeMemorial } = useActiveMemorial();
@@ -12,6 +14,7 @@ export default function TributesTab() {
   const [tributes, setTributes] = useState<Tribute[]>([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
+  const [confirm, setConfirm] = useState<ConfirmData | null>(null);
 
   useEffect(() => {
     if (!memorialId) return;
@@ -36,7 +39,6 @@ export default function TributesTab() {
   }, [tributes, query]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Remove this tribute?')) return;
     const prev = tributes;
     setTributes((list) => list.filter((t) => t.id !== id)); // optimistic
     const res = await deleteTribute(id);
@@ -47,6 +49,15 @@ export default function TributesTab() {
       toast.error('Failed to remove tribute');
     }
   };
+
+  const askDelete = (t: Tribute) =>
+    setConfirm({
+      title: 'Remove this tribute?',
+      message: `The tribute from ${t.by} will no longer appear on the memorial.`,
+      confirmLabel: 'Remove',
+      tone: 'danger',
+      onConfirm: () => handleDelete(t.id),
+    });
 
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
@@ -89,11 +100,15 @@ export default function TributesTab() {
                 <tr key={t.id} className="border-b border-gray-50 hover:bg-neutral-50/60">
                   <td className="py-3 pr-3 text-neutral-400">{i + 1}</td>
                   <td className="py-3 pr-3 font-medium text-neutral-700">{t.by}</td>
-                  <td className="py-3 pr-3 text-neutral-600">{t.description}</td>
-                  <td className="py-3 pr-3 text-neutral-500">{t.date}</td>
+                  <td className="max-w-md py-3 pr-3 text-neutral-600">
+                    <p className="line-clamp-2" title={t.description}>
+                      {t.description}
+                    </p>
+                  </td>
+                  <td className="py-3 pr-3 text-neutral-500">{formatDate(t.date)}</td>
                   <td className="py-3">
                     <button
-                      onClick={() => handleDelete(t.id)}
+                      onClick={() => askDelete(t)}
                       aria-label="Delete tribute"
                       className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-red-50 hover:text-red-500"
                     >
@@ -106,6 +121,9 @@ export default function TributesTab() {
           </table>
         </div>
       )}
+
+      {/* ---------- Confirm remove ---------- */}
+      <ConfirmDialog data={confirm} onClose={() => setConfirm(null)} />
     </div>
   );
 }

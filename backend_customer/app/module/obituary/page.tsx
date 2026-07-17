@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { Feather, Upload, Eye, Lock, Loader2, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { useActiveMemorial } from '@/app/context/ActiveMemorialContext';
 import PageHeader from '@/components/header/PageHeader';
+import MemorialModuleHeader from '@/components/header/MemorialModuleHeader';
 import {
   ObituaryRecord,
   EMPTY_OBITUARY,
@@ -26,10 +26,12 @@ const THEMES = [
 ];
 
 export default function ObituaryEditorPage() {
-  const searchParams = useSearchParams();
   const { activeMemorial } = useActiveMemorial();
 
-  const memorialId = searchParams.get('memorial') || activeMemorial?.numberList || null;
+  // Single source of truth. MemorialModuleHeader resolves any ?memorial= deep
+  // link into this context and strips the param, so reading the query string
+  // here would only reintroduce a stale value that outranks the selector.
+  const memorialId = activeMemorial?.numberList || null;
 
   const [form, setForm] = useState<ObituaryRecord>(EMPTY_OBITUARY);
   const [loading, setLoading] = useState(true);
@@ -74,7 +76,7 @@ export default function ObituaryEditorPage() {
   // SAVE: upload image (if new) -> upsert record -> generate/overwrite PDF.
   const handleSave = async () => {
     if (!memorialId) {
-      toast.error('No memorial selected. Open this from the dashboard.');
+      toast.error('No memorial selected. Choose one from the selector above.');
       return;
     }
     setSaving(true);
@@ -137,11 +139,23 @@ export default function ObituaryEditorPage() {
 
   if (!memorialId) {
     return (
-      <div className="bg-white rounded-xl border border-neutral-200 p-10 text-center">
-        <p className="text-sm font-medium text-neutral-700">No memorial selected</p>
-        <p className="text-sm text-neutral-500 mt-1">
-          Open the obituary editor from a memorial on your dashboard.
-        </p>
+      <div className="min-h-screen">
+        <PageHeader
+          icon={<Feather className="h-6 w-6" />}
+          subtitle="Edit and generate the obituary"
+        >
+          Obituary
+        </PageHeader>
+
+        {/* Kept visible: the selector is the only way out of this state. */}
+        <MemorialModuleHeader className="mb-4 border-b border-gray-100 pb-5" />
+
+        <div className="bg-white rounded-xl border border-neutral-200 p-10 text-center">
+          <p className="text-sm font-medium text-neutral-700">No memorial selected</p>
+          <p className="text-sm text-neutral-500 mt-1">
+            Choose a memorial above to edit its obituary.
+          </p>
+        </div>
       </div>
     );
   }
@@ -154,6 +168,8 @@ export default function ObituaryEditorPage() {
       >
         Obituary
       </PageHeader>
+
+      <MemorialModuleHeader className="mb-4 border-b border-gray-100 pb-5" />
 
       {loading ? (
         <div className="bg-white rounded-xl border border-neutral-200 h-96 animate-pulse" />

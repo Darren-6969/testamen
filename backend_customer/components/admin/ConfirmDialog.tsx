@@ -10,9 +10,7 @@ export type ConfirmData = {
   onConfirm: () => void;
 };
 
-// Confirmation modal for destructive / remove actions. Controlled via a
-// `data` object (null = closed); `onClose` clears it. The confirm button
-// runs `data.onConfirm()` then closes.
+// Confirmation modal for destructive / remove actions. Controlled via a `data` object (null = closed); `onClose` clears it. 
 export default function ConfirmDialog({
   data,
   onClose,

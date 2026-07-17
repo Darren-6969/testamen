@@ -85,6 +85,12 @@ const app = express();
       express.static(path.join(process.cwd(), 'uploads', 'obituary'))
     );
 
+    // customer profile pictures
+    app.use(
+      '/api/uploads/users',
+      express.static(path.join(process.cwd(), 'uploads', 'users'))
+    );
+                                                        
     // memorial content (admin module: photos, backgrounds, videos, cemetery, profile)
     app.use(
       '/api/uploads/memorial',
@@ -169,6 +175,10 @@ const app = express();
     const settingRoutes = require('./routes/setting');
     app.use('/api/setting', settingRoutes);
     
+    // customer setting (mt_user_account) 
+    const customerSettingRoutes = require('./routes/customerSetting');
+    app.use('/api/customer-setting', customerSettingRoutes);
+
     // background images
     const backgroundImageRoutes = require('./routes/backgroundimage');
     app.use('/api/background-images', backgroundImageRoutes);

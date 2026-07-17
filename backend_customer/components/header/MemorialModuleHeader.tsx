@@ -1,7 +1,8 @@
-// Shared top bar for customer-dashboard modules 
+// Shared top bar for customer-dashboard modules
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ChevronDown, ExternalLink } from 'lucide-react';
 import { useActiveMemorial } from '@/app/context/ActiveMemorialContext';
 import { fetchMemorials, MemorialOption } from '@/app/data/memorials';
@@ -14,23 +15,44 @@ interface Props {
 
 export default function MemorialModuleHeader({ className = '' }: Props) {
   const { activeMemorial, setActiveMemorial } = useActiveMemorial();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [memorials, setMemorials] = useState<MemorialOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const deepLinkHandled = useRef(false);
 
   useEffect(() => {
     let alive = true;
+
     (async () => {
       const list = await fetchMemorials();
       if (!alive) return;
       setMemorials(list);
-      if (!activeMemorial && list.length) {
+
+      const requested = searchParams.get('memorial');
+
+      if (!deepLinkHandled.current && requested) {
+        deepLinkHandled.current = true;
+        const match = list.find((m) => m.numberList === requested);
+        if (match) {
+          setActiveMemorial({ numberList: match.numberList, name: match.name });
+        }
+        // Strip the param whether or not it matched — a stale id in the URL is
+        // never useful, and an unmatched one should not keep being retried.
+        router.replace(pathname, { scroll: false });
+      } else if (!activeMemorial && list.length) {
+        // No deep link and nothing remembered -> fall back to the first memorial.
         setActiveMemorial({ numberList: list[0].numberList, name: list[0].name });
       }
+
       setLoading(false);
     })();
+
     return () => {
       alive = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const selected = memorials.find((m) => m.numberList === activeMemorial?.numberList);
@@ -52,6 +74,7 @@ export default function MemorialModuleHeader({ className = '' }: Props) {
     >
       <div className="flex items-center gap-3">
         {selected?.photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={selected.photoUrl}
             alt={selected.name}

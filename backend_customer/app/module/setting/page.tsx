@@ -1,66 +1,54 @@
-// app/dashboard/page.tsx
-"use client";
+// app/module/setting/page.tsx
+'use client';
 
-import { useRouter } from "next/navigation";
-import { Settings, User, Lock } from "lucide-react";
-import PageHeader from "@/components/header/PageHeader";
+import { useRouter } from 'next/navigation';
+import { Settings, User, Lock, CreditCard } from 'lucide-react';
+import PageHeader from '@/components/header/PageHeader';
+import SettingTile from '@/components/setting/SettingTile';
 
-export default function DashboardPage() {
+export default function SettingPage() {
   const router = useRouter();
 
   const settingItems = [
     {
-      title: "Profile Update",
-      description: "Update your name, phone, and contact details.",
+      title: 'Profile Update',
+      description: 'Update your full name, phone number, and referral code.',
       icon: User,
-      onClick: () => {
-        router.push("/module/customer-profile");
-      },
+      href: '/module/setting/profile',
     },
     {
-      title: "Change Password",
-      description: "Change your login password securely.",
+      title: 'Change Password',
+      description: 'Change your login password securely.',
       icon: Lock,
-      onClick: () => {
-        router.push("/module/setting/change-password");
-      },
+      href: '/module/setting/change-password',
+    },
+    {
+      title: 'Plan & Subscription',
+      description: 'View your current plan, storage, and payment history.',
+      icon: CreditCard,
+      href: '/module/setting/plan',
     },
   ];
 
   return (
     <div
       className="space-y-6"
-      style={{
-        backgroundColor: "var(--bg)",
-        color: "var(--text)",
-      }}
+      style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
     >
       <PageHeader icon={<Settings className="w-5 h-5 text-[#c3195d]" />}>
         <span className="text-[#c3195d]">Setting</span>
       </PageHeader>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {settingItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <button
-              key={item.title}
-              type="button"
-              onClick={item.onClick}
-              className="w-full text-left rounded-xl border border-gray-200 bg-white shadow-sm p-4 flex items-start gap-3 hover:shadow-md hover:border-red-700 transition-all"
-            >
-              <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
-                <Icon className="w-5 h-5 text-[#c3195d]" />
-              </div>
-              <div className="space-y-1">
-                <h2 className="text-m font-semibold tracking-[0.08em] text-gray-800 uppercase">
-                  {item.title}
-                </h2>
-                <p className="text-xs text-gray-500">{item.description}</p>
-              </div>
-            </button>
-          );
-        })}
+        {settingItems.map((item) => (
+          <SettingTile
+            key={item.title}
+            title={item.title}
+            description={item.description}
+            icon={item.icon}
+            onClick={() => router.push(item.href)}
+          />
+        ))}
       </div>
     </div>
   );

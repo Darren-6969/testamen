@@ -6,7 +6,20 @@ export interface StorageInfo {
   usedMb: number;
   totalMb: number;
   plan: string;
+  /** Server-reported free space. Preferred over recomputing totalMb - usedMb. */
+  remainingMb?: number;
 }
+
+/** A file the server dropped for lack of space (partial accept). */
+export interface SkippedFile {
+  name: string;
+  sizeMb: number;
+}
+
+/** Nothing fit -> the upload was rejected (HTTP 413). */
+export const QUOTA_EXCEEDED = 'STORAGE_QUOTA_EXCEEDED';
+/** Some files landed, the rest were skipped (HTTP 200). */
+export const QUOTA_PARTIAL = 'STORAGE_QUOTA_PARTIAL';
 
 export interface MemorialProfile {
   profilePic: string | null;
@@ -106,7 +119,18 @@ export const EMPTY_PROFILE: MemorialProfile = {
 
 export const MUSIC_OPTIONS = ['music1.mp3', 'music2.mp3', 'music3.mp3'];
 
-type Result = { status: string; message?: string; url?: string };
+export type Result = {
+  status: string;
+  message?: string;
+  url?: string;
+  /** QUOTA_EXCEEDED | QUOTA_PARTIAL when storage was involved. */
+  code?: string;
+  plan?: string;
+  usedMb?: number;
+  totalMb?: number;
+  remainingMb?: number;
+  skipped?: SkippedFile[];
+};
 
 async function getJson<T>(url: string, fallback: T): Promise<T> {
   try {
@@ -143,7 +167,13 @@ async function upload(url: string, memorialId: string, files: FileList | File[],
     Array.from(files).forEach((f) => fd.append('files', f));
     const res = await fetch(url, { method: 'POST', body: fd }); // no Content-Type -> browser sets boundary
     const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json?.message || String(res.status));
+    // Don't collapse a failure into an Error: a 413 carries the quota payload
+    // (code, plan, usedMb, totalMb, skipped) that StorageQuotaDialog renders.
+    // Throwing would discard everything except the message string.
+    if (!res.ok) {
+      return { status: 'error', message: json?.message || String(res.status), ...json };
+    }
+    // A 200 can still carry code: QUOTA_PARTIAL when only some files fitted.
     return { status: 'success', ...json };
   } catch (e) {
     console.error(url, e);
@@ -152,8 +182,14 @@ async function upload(url: string, memorialId: string, files: FileList | File[],
 }
 
 // ------------------------------------------------------------- storage
+// NOTE: the quota is account-wide (scoped by code_no server-side), so
+// _memorialId is ignored. Kept for call-site compatibility.
 export async function fetchStorage(_memorialId?: string): Promise<StorageInfo> {
-  return getJson<StorageInfo>('/api/admin/storage', { usedMb: 0, totalMb: 0, plan: 'Free' });
+  return getJson<StorageInfo>('/api/admin/storage', {
+    usedMb: 0,
+    totalMb: 0,
+    plan: 'Free',
+  });
 }
 
 // ------------------------------------------------------------- main page

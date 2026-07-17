@@ -29,7 +29,12 @@ import {
   deleteMedia,
   MediaItem,
   Album,
+  Result,
+  QUOTA_EXCEEDED,
+  QUOTA_PARTIAL,
 } from '@/app/data/admin';
+import { useStorage } from '@/app/context/StorageContext';
+import StorageQuotaDialog from '@/components/setting/StorageQuotaDialog';
 import SectionLabel from '@/components/admin/SectionLabel';
 import Thumb from '@/components/admin/Thumb';
 import Lightbox from '@/components/admin/Lightbox';
@@ -40,6 +45,7 @@ const uploadTile =
 
 export default function PhotosTab() {
   const { activeMemorial } = useActiveMemorial();
+  const { refresh, isFull } = useStorage();
   const memorialId = activeMemorial?.numberList || '';
   const [backgrounds, setBackgrounds] = useState<MediaItem[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
@@ -73,6 +79,9 @@ export default function PhotosTab() {
 
   // confirmation dialog for destructive / remove actions
   const [confirm, setConfirm] = useState<ConfirmData | null>(null);
+
+  // storage quota rejection / partial accept
+  const [quotaError, setQuotaError] = useState<Result | null>(null);
 
   const bgInput = useRef<HTMLInputElement>(null);
   const photoInput = useRef<HTMLInputElement>(null);
@@ -111,13 +120,24 @@ export default function PhotosTab() {
 
   const onUpload = async (
     files: FileList | null,
-    fn: (id: string, f: FileList) => Promise<{ status: string; message?: string }>
+    fn: (id: string, f: FileList) => Promise<Result>
   ) => {
     if (!files || !files.length) return;
     setBusy(true);
     const res = await fn(memorialId, files);
     setBusy(false);
-    if (res.status === 'success') {
+
+    // Usage changed either way (files landed, or the attempt revealed a stale
+    // bar), so re-read before deciding what to show.
+    await refresh();
+
+    if (res.code === QUOTA_PARTIAL) {
+      // Some files did land -> refresh the grid AND explain the skipped ones.
+      load();
+      setQuotaError(res);
+    } else if (res.code === QUOTA_EXCEEDED) {
+      setQuotaError(res);
+    } else if (res.status === 'success') {
       toast.success('Uploaded');
       load();
     } else toast.error(res.message || 'Upload failed');
@@ -128,6 +148,7 @@ export default function PhotosTab() {
     if (res.status === 'success') {
       toast.success('Removed');
       load();
+      refresh(); // deleting frees quota immediately
     } else toast.error('Failed to remove');
   };
 
@@ -196,7 +217,16 @@ export default function PhotosTab() {
     setAlbumBusy(true);
     const res = await uploadPhotos(memorialId, files, openAlbum.id);
     setAlbumBusy(false);
-    if (res.status === 'success') {
+
+    await refresh();
+
+    if (res.code === QUOTA_PARTIAL) {
+      setAlbumPhotos(await fetchPhotos(memorialId, openAlbum.id));
+      load();
+      setQuotaError(res);
+    } else if (res.code === QUOTA_EXCEEDED) {
+      setQuotaError(res);
+    } else if (res.status === 'success') {
       toast.success('Added to album');
       setAlbumPhotos(await fetchPhotos(memorialId, openAlbum.id));
       load();
@@ -262,8 +292,13 @@ export default function PhotosTab() {
       <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
         <SectionLabel>Background image</SectionLabel>
         <div className="flex flex-wrap gap-3">
-          <button disabled={busy} onClick={() => bgInput.current?.click()} className={uploadTile}>
-            <Upload className="h-5 w-5" /> Upload
+          <button
+            disabled={busy || isFull}
+            onClick={() => bgInput.current?.click()}
+            title={isFull ? 'Storage full - upgrade to upload more' : undefined}
+            className={uploadTile}
+          >
+            <Upload className="h-5 w-5" /> {isFull ? 'Storage full' : 'Upload'}
           </button>
           {backgrounds.map((b) => (
             <Thumb key={b.id} item={b} onOpen={() => b.url && setLightbox(b.url)} onDelete={() =>
@@ -314,8 +349,13 @@ export default function PhotosTab() {
       <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
         <SectionLabel>Photos</SectionLabel>
         <div className="flex flex-wrap gap-3">
-          <button disabled={busy} onClick={() => photoInput.current?.click()} className={uploadTile}>
-            <ImagePlus className="h-5 w-5" /> Upload
+          <button
+            disabled={busy || isFull}
+            onClick={() => photoInput.current?.click()}
+            title={isFull ? 'Storage full - upgrade to upload more' : undefined}
+            className={uploadTile}
+          >
+            <ImagePlus className="h-5 w-5" /> {isFull ? 'Storage full' : 'Upload'}
           </button>
           {photos.map((p) => (
             <Thumb key={p.id} item={p} onOpen={() => p.url && setLightbox(p.url)} onDelete={() =>
@@ -394,8 +434,8 @@ export default function PhotosTab() {
                 <button onClick={openPicker} className="flex items-center gap-1.5 rounded-lg bg-[#c3195d] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#a81450]">
                   <Plus className="h-4 w-4" /> Add from photos
                 </button>
-                <button disabled={albumBusy} onClick={() => albumUploadInput.current?.click()} className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-neutral-600 hover:border-[#c3195d] hover:text-[#c3195d] disabled:opacity-50">
-                  <Upload className="h-4 w-4" /> Upload new
+                <button disabled={albumBusy || isFull} onClick={() => albumUploadInput.current?.click()} title={isFull ? 'Storage full - upgrade to upload more' : undefined} className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-neutral-600 hover:border-[#c3195d] hover:text-[#c3195d] disabled:cursor-not-allowed disabled:opacity-50">
+                  <Upload className="h-4 w-4" /> {isFull ? 'Storage full' : 'Upload new'}
                 </button>
               </div>
             )}
@@ -461,6 +501,16 @@ export default function PhotosTab() {
 
       {/* ---------- Lightbox ---------- */}
       {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} />}
+
+      {/* ---------- Storage quota ---------- */}
+      <StorageQuotaDialog
+        open={!!quotaError}
+        onClose={() => setQuotaError(null)}
+        message={quotaError?.message}
+        quota={quotaError ?? {}}
+        skipped={quotaError?.skipped}
+        partial={quotaError?.code === QUOTA_PARTIAL}
+      />
     </div>
   );
 }

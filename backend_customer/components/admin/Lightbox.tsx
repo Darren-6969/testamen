@@ -4,7 +4,15 @@ import { useRef, useState } from 'react';
 import { X, ZoomIn, ZoomOut } from 'lucide-react';
 
 // Full-screen image preview with zoom (buttons / wheel) and drag-to-pan.
-export default function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
+export default function Lightbox({
+  src,
+  caption,
+  onClose,
+}: {
+  src: string;
+  caption?: string;
+  onClose: () => void;
+}) {
   const [scale, setScale] = useState(1);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const drag = useRef<{ sx: number; sy: number; px: number; py: number } | null>(null);
@@ -52,6 +60,12 @@ export default function Lightbox({ src, onClose }: { src: string; onClose: () =>
         style={{ transform: `translate(${pos.x}px, ${pos.y}px) scale(${scale})`, cursor: scale > 1 ? 'grab' : 'default' }}
         className="max-h-[90vh] max-w-[90vw] select-none rounded-lg object-contain transition-transform duration-75"
       />
+      {caption && (
+        // absolute so it never interferes with the image's zoom/pan transform
+        <p className="pointer-events-none absolute bottom-6 left-1/2 max-w-[80vw] -translate-x-1/2 rounded-lg bg-black/60 px-4 py-2 text-center text-sm text-neutral-100">
+          {caption}
+        </p>
+      )}
     </div>
   );
 }

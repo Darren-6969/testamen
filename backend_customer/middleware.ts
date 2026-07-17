@@ -19,12 +19,8 @@ const CUSTOMER_PAGE_PREFIXES = [
   "/module/love-giving",
   "/module/memorials",
   "/module/admin",
-  "/invoice",
-];
-
-const CUSTOMER_EXACT_PAGES = [
   "/module/setting",
-  "/module/setting/change-password",
+  "/invoice",
 ];
 
 const PUBLIC_FILE_REGEX =
@@ -90,7 +86,6 @@ export function middleware(request: NextRequest) {
   }
 
   const isCustomerPage =
-    CUSTOMER_EXACT_PAGES.includes(pathname) ||
     CUSTOMER_PAGE_PREFIXES.some(
       (p) => pathname === p || pathname.startsWith(`${p}/`)
     );

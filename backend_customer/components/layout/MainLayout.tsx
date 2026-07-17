@@ -17,7 +17,6 @@ import {
   Menu,
   User,
   LogOut,
-  Settings,
 } from 'lucide-react';
 import { SidebarItem, fetchModuleList } from '../../app/data/sidebar';
 
@@ -74,9 +73,13 @@ export default function MainLayout({ children }: MainLayoutProps) {
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const data = await fetchMyCustomerProfile();
-        if (data) {
-          setCurrentUser(data);
+        // fetchMyCustomerProfile returns a discriminated result so an expired
+        // session is distinguishable from an empty profile.
+        const result = await fetchMyCustomerProfile();
+        if (result.ok) {
+          setCurrentUser(result.data);
+        } else {
+          console.error('Failed to load profile in layout:', result.error);
         }
       } catch (error) {
         console.error('Failed to load profile in layout:', error);
@@ -177,12 +180,13 @@ export default function MainLayout({ children }: MainLayoutProps) {
   };
 
   const handleProfileClick = () => {
-    router.push(`/module/customer-profile`);
+    router.push(`/module/setting/profile`);
   }
 
   // 🔹 derived display values
-  const displayName =
-    currentUser?.name || currentUser?.username || 'User';
+  // mt_user_account has no separate display-name column; username IS the full
+  // name (the legacy my-profile query aliased `username AS name`).
+  const displayName = currentUser?.username || 'User';
   const displayEmail = currentUser?.email || '—';
 
   return (
@@ -274,8 +278,17 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 sidebarCollapsed ? 'justify-center' : ''
               }`}
             >
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                <User className="w-4 h-4 text-white" />
+              <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600 flex-shrink-0">
+                {currentUser?.picture_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={currentUser.picture_url}
+                    alt={displayName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User className="w-4 h-4 text-white" />
+                )}
               </div>
               {!sidebarCollapsed && (
                 <div className="flex-1 min-w-0">
@@ -370,16 +383,6 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 </div>
               )}
             </div>
-
-            <button
-              className="p-2 rounded-lg hover:bg-[var(--sidebar-hover-bg)] transition-colors"
-              onClick={() => {
-                router.push('/module/setting');
-              }}
-              aria-label="Open settings"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
 
             {/* <ThemeSwitch /> */}
           </div>
