@@ -23,6 +23,7 @@ export const QUOTA_PARTIAL = 'STORAGE_QUOTA_PARTIAL';
 
 export interface MemorialProfile {
   profilePic: string | null;
+  memorialName: string;
   fullname: string;
   gender: string;
   career: string;
@@ -76,7 +77,7 @@ export interface VideoItem {
 }
 
 export interface ApprovalItem {
-  id: string; // composite "photo:<id>" | "video:<id>"
+  id: string;
   url: string | null;
   poster?: string | null;
   kind: 'photo' | 'video';
@@ -93,6 +94,7 @@ export interface Tribute {
 
 export const EMPTY_PROFILE: MemorialProfile = {
   profilePic: null,
+  memorialName: '',
   fullname: '',
   gender: '',
   career: '',
@@ -167,9 +169,7 @@ async function upload(url: string, memorialId: string, files: FileList | File[],
     Array.from(files).forEach((f) => fd.append('files', f));
     const res = await fetch(url, { method: 'POST', body: fd }); // no Content-Type -> browser sets boundary
     const json = await res.json().catch(() => ({}));
-    // Don't collapse a failure into an Error: a 413 carries the quota payload
-    // (code, plan, usedMb, totalMb, skipped) that StorageQuotaDialog renders.
-    // Throwing would discard everything except the message string.
+    
     if (!res.ok) {
       return { status: 'error', message: json?.message || String(res.status), ...json };
     }

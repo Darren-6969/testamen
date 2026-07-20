@@ -187,6 +187,18 @@ export default function MainPageTab() {
               <label className={label}>Full name</label>
               <input className={input} value={form.fullname} onChange={(e) => set('fullname', e.target.value)} />
             </div>
+            <div className="md:col-span-2">
+              <label className={label}>Memorial name</label>
+              <input
+                className={input}
+                value={form.memorialName}
+                placeholder={form.fullname || 'Shown on the dashboard and memorial cards'}
+                onChange={(e) => set('memorialName', e.target.value)}
+              />
+              <p className="mt-1 text-xs text-neutral-400">
+                Shown on your dashboard and memorial cards. Leave blank to use the full name, or set a nickname or preferred name.
+              </p>
+            </div>
             <div>
               <label className={label}>Gender</label>
               <select className={input} value={form.gender} onChange={(e) => set('gender', e.target.value)}>

@@ -1,6 +1,6 @@
 // src/controllers/customerSettingController.js
 //
-// Customer-facing settings. Operates ONLY on mt_user_account.
+// Customer dashboard settings. Operates ONLY on mt_user_account.
 //
 // Do not confuse with settingController.js, which is the staff equivalent and
 // operates on users/staff. They are distinct tables that share an id space —
@@ -8,7 +8,6 @@
 // the other. Every handler here is guarded by portal === 'customer'.
 //
 // Identity always comes from the JWT (req.user.userId === mt_user_account.id).
-// The legacy PHP posted a hidden user_id field; it is never trusted here.
 
 const fs = require('fs');
 const path = require('path');
@@ -22,12 +21,6 @@ const currentUserId = (req) => req.user?.userId ?? null;
 //
 // Avatars live in uploads/users and are served by the '/api/uploads/users'
 // static mount in index.js, mirroring the obituary pattern.
-//
-// NOTE ON QUOTA: these files are deliberately NOT counted against the storage
-// quota. storageController sums file_size across mt_photo, mt_video,
-// mt_memorial_background and mt_cemetary_image only — an avatar lives on
-// mt_user_account.picture and is excluded by construction. If avatars should
-// ever count, that is a change to storageController, not to this file.
 
 const AVATAR_DIR = path.join(__dirname, '..', '..', 'uploads', 'users');
 

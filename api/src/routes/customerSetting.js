@@ -15,8 +15,6 @@ const requireCustomer = (req, res, next) => {
   next();
 };
 
-// multer rejects (size/type) surface as thrown errors, which would otherwise
-// bubble to the generic 500 handler and tell the user nothing useful.
 const handleUploadErrors = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {

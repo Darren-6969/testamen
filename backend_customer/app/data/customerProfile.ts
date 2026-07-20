@@ -1,15 +1,5 @@
 // app/data/customerProfile.ts
-// The logged-in customer's own account, backed by mt_user_account via
-// /api/customer-setting/*.
-//
-// This used to be typed off `Customer` from ./customers and pointed at
-// /api/customers/* — that is the staff-side B2B registry (users/customer tables:
-// company address, registration number, signatory). Customers live in
-// mt_user_account. The two tables share an id space, so the old
-// `PUT /api/customers/:id` wrote to an unrelated staff row.
-//
-// Also distinct from app/data/setting.ts, which is the staff/telco-template data
-// layer (users/staff, branches, packages) and does not apply to customers.
+// The logged-in customer's own account, backed by mt_user_account via /api/customer-setting/*.
 import axios from 'axios';
 
 /** Shape of an mt_user_account row as exposed by GET /api/customer-setting/profile. */

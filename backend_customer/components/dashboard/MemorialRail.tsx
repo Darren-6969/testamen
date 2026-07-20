@@ -2,40 +2,36 @@
 // My Memorials: at most 3 cards across, anything past that scrolls sideways
 // rather than wrapping onto a second row.
 //
+// Three ways to move the rail, all driving the same scrollLeft:
+//   1. Arrow buttons (desktop) — one card per click, smooth.
+//   2. Mouse wheel — vertical wheel translated to horizontal scroll.
+//   3. Click-and-drag pan (mouse only) — touch keeps its native swipe.
+//
 // This owns the heading as well as the rail because the arrow buttons sit in
 // the heading but drive the rail's scroll position — splitting them would mean
 // lifting the ref into the page and handing it back down.
 'use client';
 
-import { ReactNode, useCallback, useRef } from 'react';
+import {
+  ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import SectionHeading from './SectionHeading';
 
-/** Cards past this count are reachable by scrolling, not by wrapping. */
 export const MEMORIAL_RAIL_VISIBLE = 3;
-
-/**
- * gap-4 === 1rem, so 3 cards share (100% - 2rem) and 2 share (100% - 1rem).
- * Width is a fixed fraction regardless of count, so cards stay uniform and a
- * 4th peeks in at the right edge to signal the rail scrolls.
- *
- * Exported so the loading skeleton can size its placeholders identically —
- * otherwise the layout jumps when real data lands.
- */
 export const MEMORIAL_CARD_WIDTH =
-  'shrink-0 snap-start basis-[86%] sm:basis-[calc((100%-1rem)/2)] lg:basis-[calc((100%-2rem)/3)]';
+  'shrink-0 basis-[86%] sm:basis-[calc((100%-1rem)/2)] lg:basis-[calc((100%-2rem)/3)]';
 
-/** Matches gap-4. Kept next to the class above so the two can't drift apart. */
 const RAIL_GAP_PX = 16;
 
+const DRAG_THRESHOLD_PX = 4;
+
 interface MemorialRailProps {
-  /**
-   * Card count. Explicit rather than React.Children.count(children): children
-   * arrive as a single mapped array, and counting leaves through it is a
-   * subtlety no one should have to remember when editing this.
-   */
   itemCount: number;
-  /** Extra heading controls, e.g. an Add Memorial button. */
   headerAction?: ReactNode;
   children: ReactNode;
 }
@@ -46,27 +42,116 @@ export default function MemorialRail({
   children,
 }: MemorialRailProps) {
   const railRef = useRef<HTMLDivElement | null>(null);
+  const drag = useRef({ active: false, startX: 0, startLeft: 0, moved: false });
+  const [dragging, setDragging] = useState(false);
+  const [canScroll, setCanScroll] = useState(false);
 
+  useEffect(() => {
+    const rail = railRef.current;
+    if (!rail) return;
+    const update = () => setCanScroll(rail.scrollWidth - rail.clientWidth > 1);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(rail);
+    return () => ro.disconnect();
+  }, [itemCount]);
+
+  useEffect(() => {
+    const rail = railRef.current;
+    if (!rail) return;
+
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+
+      const overflow = rail.scrollWidth - rail.clientWidth;
+      if (overflow <= 0) return;
+
+      const atStart = rail.scrollLeft <= 0;
+      const atEnd = rail.scrollLeft >= overflow - 1;
+      
+      if ((e.deltaY < 0 && atStart) || (e.deltaY > 0 && atEnd)) return;
+
+      e.preventDefault();
+      rail.scrollLeft += e.deltaY;
+    };
+
+    rail.addEventListener('wheel', onWheel, { passive: false });
+    return () => rail.removeEventListener('wheel', onWheel);
+  }, []);
+
+  // --- arrow buttons --------------------------------------------------------
   const scrollRail = useCallback((direction: -1 | 1) => {
     const rail = railRef.current;
     if (!rail) return;
-    // Measure the live card instead of assuming a pixel width — the basis
-    // changes at every breakpoint, so a hardcoded step would misalign.
     const card = rail.firstElementChild as HTMLElement | null;
     const step = card ? card.offsetWidth + RAIL_GAP_PX : rail.clientWidth;
     rail.scrollBy({ left: direction * step, behavior: 'smooth' });
   }, []);
 
-  const scrollable = itemCount > MEMORIAL_RAIL_VISIBLE;
+  // --- click-and-drag pan (mouse only) --------------------------------------
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    // Touch/pen keep their native swipe + snap; only take over the mouse.
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    const rail = railRef.current;
+    if (!rail) return;
+    drag.current = {
+      active: true,
+      startX: e.clientX,
+      startLeft: rail.scrollLeft,
+      moved: false,
+    };
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!drag.current.active) return;
+    const rail = railRef.current;
+    if (!rail) return;
+
+    const dx = e.clientX - drag.current.startX;
+    if (Math.abs(dx) <= DRAG_THRESHOLD_PX) return;
+
+    if (!drag.current.moved) {
+      drag.current.moved = true;
+      setDragging(true);
+      rail.setPointerCapture(e.pointerId);
+    }
+    rail.scrollLeft = drag.current.startLeft - dx;
+  };
+
+  const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!drag.current.active) return;
+    drag.current.active = false;
+    setDragging(false);
+    const rail = railRef.current;
+    if (rail?.hasPointerCapture(e.pointerId)) {
+      rail.releasePointerCapture(e.pointerId);
+    }
+  };
+
+  // Swallow the synthetic click that follows a drag so releasing the mouse over
+  // a card doesn't open it or fire one of its action buttons.
+  const onClickCapture = (e: React.MouseEvent) => {
+    if (drag.current.moved) {
+      e.preventDefault();
+      e.stopPropagation();
+      drag.current.moved = false;
+    }
+  };
+
+  const railClasses = [
+    'flex gap-4 overflow-x-auto -mx-1 px-1 py-1 [scrollbar-width:thin]',
+    dragging ? 'select-none' : '',
+    canScroll ? (dragging ? 'cursor-grabbing' : 'cursor-grab') : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div>
       <SectionHeading
         action={
           <div className="flex items-center gap-2">
-            {/* Desktop only — touch devices swipe, and the arrows would just
-                eat space next to the Add button. */}
-            {scrollable && (
+            {canScroll && (
               <div className="hidden lg:flex items-center gap-1.5">
                 <button
                   onClick={() => scrollRail(-1)}
@@ -91,11 +176,16 @@ export default function MemorialRail({
         My Memorials
       </SectionHeading>
 
-      {/* -mx-1 px-1 py-1 gives the cards' hover shadow and active ring room to
-          render — overflow-x-auto clips them flush otherwise. */}
       <div
         ref={railRef}
-        className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth -mx-1 px-1 py-1 [scrollbar-width:thin]"
+        className={railClasses}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onClickCapture={onClickCapture}
+        // Stop the browser's native image drag-ghost from hijacking the pan.
+        onDragStart={(e) => e.preventDefault()}
       >
         {children}
       </div>

@@ -22,13 +22,10 @@ export interface DashboardMemorial {
 export type ActivityType = 'photo' | 'video' | 'audio' | 'tribute';
 
 export interface DashboardActivity {
-  /** Stable key: "<type>:<memorialId>:<yyyy-mm-dd>:<actor>" */
   id: string;
   type: ActivityType;
-  /** null => the account owner ("You"). A name string => public-site visitor. */
   actor: string | null;
   memorialName: string;
-  /** Number of items in this grouped event (e.g. 3 photos in one upload). */
   count: number;
   date: string;
   message: string;
@@ -49,12 +46,7 @@ export type DashboardResult =
   | { ok: true; data: DashboardOverview }
   | { ok: false; error: string };
 
-/**
- * Fetch the logged-in customer's dashboard overview.
- *
- * Returns a discriminated result rather than an empty payload: a 401/500 must not
- * be indistinguishable from "this account has no memorials yet".
- */
+
 export async function fetchDashboardOverview(): Promise<DashboardResult> {
   try {
     const res = await fetch('/api/customer-dashboard/overview', {
