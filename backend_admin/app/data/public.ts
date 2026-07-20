@@ -5,9 +5,9 @@ export interface PublicPrayer {
   message: string;
   email: string | null;
   created_date: string | null;
+  status: boolean;
 }
 
-// Helper interface for API envelopes if your backend wraps data in a { data: ... } object
 interface ApiResponseEnvelope<T> {
   data?: T;
 }
@@ -25,7 +25,6 @@ export const fetchPublic = async (
   nextCursor: string | null;
 }> => {
   try {
-    // Cast the axios get response so TypeScript knows what structure to expect
     const res = await axios.get<ApiResponseEnvelope<PublicPrayer[]> | PublicPrayer[]>('/api/public', {
       withCredentials: true,
       params: {
@@ -34,7 +33,6 @@ export const fetchPublic = async (
       },
     });
 
-    // Explicitly type rows as PublicPrayer[]
     const rows: PublicPrayer[] = Array.isArray(res.data)
       ? res.data
       : (res.data && 'data' in res.data && Array.isArray(res.data.data))
@@ -43,7 +41,7 @@ export const fetchPublic = async (
 
     return {
       data: rows,
-      nextCursor: null, // Update this logic later if your API returns a next cursor
+      nextCursor: null,
     };
   } catch (error: any) {
     console.error('fetchPublic error:', {
@@ -67,7 +65,6 @@ export const fetchPublicById = async (
       withCredentials: true,
     });
 
-    // Properly extract the data with type safety
     if (!res.data) return null;
     
     if ('data' in res.data && res.data.data) {
@@ -102,6 +99,7 @@ export const updatePublicPrayer = async (
   data: {
     message?: string;
     email?: string | null;
+    status?: boolean;
   }
 ) => {
   try {
@@ -114,9 +112,23 @@ export const updatePublicPrayer = async (
     );
 
     return res.data;
-  } catch (error) {
-    console.error('updatePublicPrayer error:', error);
-    return null;
+  } catch (error: any) {
+    console.error('updatePublicPrayer error:', {
+      message: error?.message,
+      status: error?.response?.status,
+      data: error?.response?.data,
+    });
+
+    return {
+      success: false,
+      message:
+        error?.response?.data?.error ||
+        error?.response?.data?.message ||
+        (error?.response?.status
+          ? `Request failed with status ${error.response.status}`
+          : error?.message) ||
+        'Failed to update prayer.',
+    };
   }
 };
 

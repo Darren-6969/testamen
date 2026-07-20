@@ -1,8 +1,11 @@
 // app/data/deceased.ts
 
 export interface Deceased {
-  number_list: number;
-  registration_date: string;
+  id: number;
+  code_no?: string;
+  url_name?: string;
+  status?: string;
+  register_date: string;
   memorial_name: string;
   gender: string;
   registered_account: string;
@@ -44,6 +47,7 @@ export async function fetchDeceasedById(
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
       },
       cache: 'no-store',
     });
@@ -97,6 +101,7 @@ export async function updateDeceased(
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
       },
       body: JSON.stringify(data),
     });
@@ -115,13 +120,12 @@ export async function updateDeceased(
 /**
  * Delete deceased record
  */
-export async function deleteDeceased(number_list: number): Promise<boolean> {
+export async function deleteDeceased(id: number): Promise<boolean> {
   try {
-    const res = await fetch(`/api/deceased/${number_list}`, {
+    const res = await fetch(`/api/deceased/${id}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
-        // if using JWT:
         Authorization: `Bearer ${localStorage.getItem('token')}`,
       },
     });

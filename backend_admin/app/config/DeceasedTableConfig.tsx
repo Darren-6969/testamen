@@ -1,20 +1,22 @@
 import { Column } from '@/components/table/DataTableWithColumnSearch';
-import { Trash } from 'lucide-react';
+import { Pencil, Trash } from 'lucide-react';
 
 export interface Deceased {
-  number_list: number;
+  id: number;
   register_date: string;
   memorial_name: string;
   gender: string;
   registered_account: string;
+  status?: string;
   show: boolean;
 }
 
 export const deceasedColumns = (
+  handleEdit: (id: number) => void,
   handleDelete: (id: number) => void | Promise<void>
 ): Column<Deceased>[] => [
   {
-    key: 'number_list',
+    key: 'id',
     label: 'NO',
     position: 'middle',
     sortable: true,
@@ -57,16 +59,42 @@ export const deceasedColumns = (
     sortable: true,
   },
   {
+    key: 'status',
+    label: 'STATUS',
+    position: 'middle',
+    sortable: true,
+    render: (row: Deceased) => {
+      const isActive = String(row?.status) === '1';
+
+      return (
+        <span
+          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+            isActive
+              ? 'bg-green-100 text-green-700'
+              : 'bg-gray-100 text-gray-600'
+          }`}
+        >
+          {isActive ? 'Active' : 'Inactive'}
+        </span>
+      );
+    },
+  },
+  {
     key: 'action',
     label: 'ACTION',
     position: 'middle',
     sortable: false,
     actions: [
       {
+        icon: Pencil,
+        tooltip: 'Edit Deceased Record',
+        onClick: (row) => handleEdit(row.id),
+      },
+      {
         icon: Trash,
         variant: 'danger',
         tooltip: 'Delete Deceased Record',
-        onClick: (row) => handleDelete(row.number_list),
+        onClick: (row) => handleDelete(row.id),
       },
     ],
   },

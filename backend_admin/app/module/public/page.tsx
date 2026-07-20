@@ -20,6 +20,7 @@ export default function PublicPrayerPage() {
   const [selectedPrayer, setSelectedPrayer] = useState<PublicPrayer | null>(null);
   const [editEmail, setEditEmail] = useState('');
   const [editMessage, setEditMessage] = useState('');
+  const [editVisible, setEditVisible] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const fetchPublicForTable = async (...args: any[]) => {
@@ -49,6 +50,7 @@ export default function PublicPrayerPage() {
     setSelectedPrayer(row);
     setEditEmail(row.email || '');
     setEditMessage(row.message || '');
+    setEditVisible(Boolean(row.status));
     setEditOpen(true);
   };
 
@@ -59,6 +61,7 @@ export default function PublicPrayerPage() {
     setSelectedPrayer(null);
     setEditEmail('');
     setEditMessage('');
+    setEditVisible(true);
   };
 
   const handleUpdate = async () => {
@@ -75,6 +78,7 @@ export default function PublicPrayerPage() {
       const result = (await updatePublicPrayer(selectedPrayer.id, {
         message: editMessage.trim(),
         email: editEmail.trim() || null,
+        status: editVisible,
       })) as { success?: boolean; message?: string } | undefined;
 
       if (!result?.success) {
@@ -84,9 +88,9 @@ export default function PublicPrayerPage() {
       toast.success('Prayer updated successfully.');
       closeEditModal();
       setReloadKey((k) => k + 1);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Update prayer error:', error);
-      toast.error('Failed to update prayer.');
+      toast.error(error?.message || 'Failed to update prayer.');
     } finally {
       setSaving(false);
     }
@@ -178,6 +182,27 @@ export default function PublicPrayerPage() {
                   rows={7}
                   className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-[#c3195d] focus:ring-2 focus:ring-[#c3195d]/20"
                 />
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-700">
+                    Show on table
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Visible prayers appear in the public listing.
+                  </p>
+                </div>
+
+                <label className="relative inline-flex cursor-pointer items-center">
+                  <input
+                    type="checkbox"
+                    checked={editVisible}
+                    onChange={(e) => setEditVisible(e.target.checked)}
+                    className="peer sr-only"
+                  />
+                  <div className="peer h-6 w-11 rounded-full bg-gray-300 transition peer-checked:bg-green-600 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full"></div>
+                </label>
               </div>
             </div>
 

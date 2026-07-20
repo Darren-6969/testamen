@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import GenericTablePage from '@/components/generic/GenericTablePage';
 import {
   fetchDeceaseds,
@@ -14,7 +15,12 @@ import { toast } from 'sonner';
 
 export default function DeceasedPage() {
 
+  const router = useRouter();
   const [reloadKey, setReloadKey] = useState(0);
+
+  const handleEdit = (id: number) => {
+    router.push(`/module/deceased/edit?id=${id}`);
+  };
 
   const handleDelete = async (id: number) => {
   const confirmed = confirm(
@@ -46,7 +52,7 @@ export default function DeceasedPage() {
       <GenericTablePage
         key={reloadKey}
         fetchData={fetchDeceaseds}
-        columns={deceasedColumns(handleDelete)}
+        columns={deceasedColumns(handleEdit, handleDelete)}
         config={{
           pageSize: 10,
           tableType: 'columnSearch',

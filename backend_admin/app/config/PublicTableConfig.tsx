@@ -23,13 +23,11 @@ export const publicTableColumns = (
   handleDelete: (id: number) => void
 ): Column<PublicPrayer>[] => [
   {
-    key: 'id',
+    key: 'rowNum',
     label: 'NO',
     position: 'middle',
     searchable: false,
-    sortable: true,
-    sortFn: (a, b) => (a.id ?? 0) - (b.id ?? 0),
-    render: (row) => row.id ?? '-',
+    sortable: false,
   },
 
   {
@@ -68,6 +66,30 @@ export const publicTableColumns = (
       (a.message ?? '').localeCompare(b.message ?? ''),
 
     render: (row) => row.message || '-',
+  },
+
+  {
+    key: 'status',
+    label: 'STATUS',
+    position: 'middle',
+    searchable: false,
+    sortable: true,
+    sortFn: (a, b) => Number(a.status) - Number(b.status),
+    render: (row) => {
+      const isActive = Boolean(row.status);
+
+      return (
+        <span
+          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+            isActive
+              ? 'bg-green-100 text-green-700'
+              : 'bg-gray-100 text-gray-500'
+          }`}
+        >
+          {isActive ? 'Active' : 'Inactive'}
+        </span>
+      );
+    },
   },
 
   {

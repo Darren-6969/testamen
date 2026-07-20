@@ -55,8 +55,18 @@ exports.getProfile = async (req, res) => {
     );
     const r = rows?.[0] || {};
     const d = (v) => (v ? String(v).slice(0, 10) : ''); // date -> YYYY-MM-DD
+
+    // The card/dashboard display name lives on mt_deceased, not mt_profile.
+    // Read it here so the Main Page form can edit it alongside the full name.
+    const decRows = await runQuery(
+      db,
+      `SELECT memorial_name FROM mt_deceased WHERE number_list = $1 LIMIT 1`,
+      [String(memorialId)]
+    );
+
     return res.json({
       profilePic: r.profile_pic ? mediaUrl('profile', r.profile_pic) : null,
+      memorialName: decRows?.[0]?.memorial_name || '',
       fullname: r.fullname || '',
       gender: r.gender || '',
       career: r.career || '',
@@ -133,6 +143,22 @@ exports.saveProfile = async (req, res) => {
         insertParams
       );
     }
+    // Display name shown on the dashboard rail and memorial cards. Stored on
+    // mt_deceased (NOT mt_profile). Falls back to the full name when the user
+    // leaves it blank, so the two stay the same by default; set it explicitly
+    // to use a nickname or preferred name. url_name is deliberately NOT touched
+    // here — public URLs stay stable across a rename.
+    const memorialName =
+      String(req.body.memorialName || '').trim() ||
+      String(req.body.fullname || '').trim();
+    if (memorialName) {
+      await runQuery(
+        db,
+        `UPDATE mt_deceased SET memorial_name = $1 WHERE number_list = $2`,
+        [memorialName, String(memorialId)]
+      );
+    }
+
     return res.json({ status: 'success' });
   } catch (err) {
     console.error('saveProfile error:', err);

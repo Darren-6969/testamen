@@ -10,9 +10,7 @@ const {
   deletePublicPrayer,
 } = require('../controllers/publicPrayerController');
 
-/**
- * Public Prayer Routes
- */
+// Public Prayer Routes
 router.get('/', verifyToken, getPublicPrayers);
 router.get('/:id', verifyToken, getPublicPrayerById);
 router.post('/', verifyToken, createPublicPrayer);
