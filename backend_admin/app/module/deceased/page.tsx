@@ -18,6 +18,10 @@ export default function DeceasedPage() {
   const router = useRouter();
   const [reloadKey, setReloadKey] = useState(0);
 
+  const handleView = (id: number) => {
+    router.push(`/module/deceased/${id}`);
+  };
+
   const handleEdit = (id: number) => {
     router.push(`/module/deceased/edit?id=${id}`);
   };
@@ -52,7 +56,7 @@ export default function DeceasedPage() {
       <GenericTablePage
         key={reloadKey}
         fetchData={fetchDeceaseds}
-        columns={deceasedColumns(handleEdit, handleDelete)}
+        columns={deceasedColumns(handleView, handleEdit, handleDelete)}
         config={{
           pageSize: 10,
           tableType: 'columnSearch',

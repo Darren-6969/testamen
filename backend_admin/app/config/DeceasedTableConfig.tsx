@@ -1,5 +1,5 @@
 import { Column } from '@/components/table/DataTableWithColumnSearch';
-import { Pencil, Trash } from 'lucide-react';
+import { Eye, Pencil, Trash } from 'lucide-react';
 
 export interface Deceased {
   id: number;
@@ -12,6 +12,7 @@ export interface Deceased {
 }
 
 export const deceasedColumns = (
+  handleView: (id: number) => void,
   handleEdit: (id: number) => void,
   handleDelete: (id: number) => void | Promise<void>
 ): Column<Deceased>[] => [
@@ -85,6 +86,12 @@ export const deceasedColumns = (
     position: 'middle',
     sortable: false,
     actions: [
+      {
+        icon: Eye,
+        variant: 'primary',
+        tooltip: 'View Deceased Record',
+        onClick: (row) => handleView(row.id),
+      },
       {
         icon: Pencil,
         tooltip: 'Edit Deceased Record',

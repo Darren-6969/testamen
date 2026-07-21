@@ -77,7 +77,7 @@ export interface VideoItem {
 }
 
 export interface ApprovalItem {
-  id: string;
+  id: string; // composite "photo:<id>" | "video:<id>"
   url: string | null;
   poster?: string | null;
   kind: 'photo' | 'video';
@@ -90,6 +90,14 @@ export interface Tribute {
   by: string;
   description: string;
   date: string;
+}
+
+/** A background-music track from the global mt_bgm library. */
+export interface BgmOption {
+  title: string;
+  filename: string; // stored in mt_profile.music; file at uploads/memorial/music/<filename>
+  artist: string;
+  url: string; // /api/uploads/memorial/music/<filename>
 }
 
 export const EMPTY_PROFILE: MemorialProfile = {
@@ -118,8 +126,6 @@ export const EMPTY_PROFILE: MemorialProfile = {
   music: '',
   privacy: 'Public',
 };
-
-export const MUSIC_OPTIONS = ['music1.mp3', 'music2.mp3', 'music3.mp3'];
 
 export type Result = {
   status: string;
@@ -169,7 +175,9 @@ async function upload(url: string, memorialId: string, files: FileList | File[],
     Array.from(files).forEach((f) => fd.append('files', f));
     const res = await fetch(url, { method: 'POST', body: fd }); // no Content-Type -> browser sets boundary
     const json = await res.json().catch(() => ({}));
-    
+    // Don't collapse a failure into an Error: a 413 carries the quota payload
+    // (code, plan, usedMb, totalMb, skipped) that StorageQuotaDialog renders.
+    // Throwing would discard everything except the message string.
     if (!res.ok) {
       return { status: 'error', message: json?.message || String(res.status), ...json };
     }
@@ -198,6 +206,10 @@ export async function fetchProfile(memorialId: string): Promise<MemorialProfile>
 }
 export async function saveProfile(memorialId: string, data: MemorialProfile): Promise<Result> {
   return mutate('/api/admin/profile/save', 'POST', { ...data, memorialId });
+}
+/** Active tracks from the global BGM library, for the Background music dropdown. */
+export async function fetchBgmOptions(): Promise<BgmOption[]> {
+  return getJson<BgmOption[]>('/api/admin/bgm', []);
 }
 export async function uploadProfilePic(memorialId: string, file: File): Promise<Result> {
   return upload('/api/admin/profile/photo', memorialId, [file]);

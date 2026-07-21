@@ -40,6 +40,9 @@ router.get('/cemetery/:memorialId', profile.listCemetery);
 router.post('/cemetery/upload', ...withQuota(cemeteryUpload), profile.uploadCemetery);
 router.delete('/cemetery/:id', profile.deleteCemetery);
 
+// background music library (global catalogue; read-only for the customer side)
+router.get('/bgm', profile.getBgmOptions);
+
 // photos & albums
 router.get('/background/:memorialId', media.listBackgrounds);
 router.post('/background/upload', ...withQuota(backgroundUpload), media.uploadBackgrounds);

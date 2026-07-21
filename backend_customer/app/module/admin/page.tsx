@@ -5,6 +5,7 @@ import { Save, Upload, Music, Lock, Globe, User, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useActiveMemorial } from '@/app/context/ActiveMemorialContext';
 import MapPicker from '@/components/admin/MapPicker';
+import AudioPlayer from '@/components/ui/AudioPlayer';
 import {
   fetchProfile,
   saveProfile,
@@ -13,7 +14,8 @@ import {
   uploadCemetery,
   deleteMedia,
   EMPTY_PROFILE,
-  MUSIC_OPTIONS,
+  fetchBgmOptions,
+  BgmOption,
   MemorialProfile,
   MediaItem,
 } from '@/app/data/admin';
@@ -33,6 +35,7 @@ export default function MainPageTab() {
   const { activeMemorial } = useActiveMemorial();
   const memorialId = activeMemorial?.numberList || '';
   const [form, setForm] = useState<MemorialProfile>(EMPTY_PROFILE);
+  const [bgmOptions, setBgmOptions] = useState<BgmOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -78,6 +81,13 @@ export default function MainPageTab() {
       stagedCemetery.forEach((s) => URL.revokeObjectURL(s.preview));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // BGM library is global (not per-memorial), so load it once.
+  useEffect(() => {
+    fetchBgmOptions()
+      .then(setBgmOptions)
+      .catch(() => setBgmOptions([]));
   }, []);
 
   const set = (k: keyof MemorialProfile, v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -347,14 +357,33 @@ export default function MainPageTab() {
           <div className="flex items-center gap-2">
             <Music className="h-4 w-4 text-[#c3195d]" />
             <select className={input} value={form.music} onChange={(e) => set('music', e.target.value)}>
-              <option value="">Choose music</option>
-              {MUSIC_OPTIONS.map((m) => (
-                <option key={m} value={m}>
-                  {m}
+              <option value="">No music</option>
+              {bgmOptions.map((m) => (
+                <option key={m.filename} value={m.filename}>
+                  {m.artist ? `${m.title} — ${m.artist}` : m.title}
                 </option>
               ))}
+              {/* Keep a saved-but-hidden/legacy track visible so the select still
+                  reflects what's stored, even if it's no longer in the library. */}
+              {form.music && !bgmOptions.some((m) => m.filename === form.music) && (
+                <option value={form.music}>{form.music} (unavailable)</option>
+              )}
             </select>
           </div>
+
+          {form.music && (
+            <AudioPlayer
+              className="mt-3"
+              src={
+                bgmOptions.find((m) => m.filename === form.music)?.url ||
+                `/api/uploads/memorial/music/${form.music}`
+              }
+            />
+          )}
+
+          {!bgmOptions.length && (
+            <p className="mt-2 text-xs text-neutral-400">No background music available yet.</p>
+          )}
         </div>
 
         <div className={card}>

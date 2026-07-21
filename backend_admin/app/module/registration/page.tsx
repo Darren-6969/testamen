@@ -25,8 +25,12 @@ export default function RegistrationPage() {
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: null });
 
   const handleView = (row: Registration) => {
-  router.push(`/module/registration/view/${row.id}`);
-};
+    router.push(`/module/registration/view/${row.id}`);
+  };
+
+  const handleEdit = (row: Registration) => {
+    router.push(`/module/registration/edit/${row.id}`);
+  };
 
   const handleDelete = async (row: Registration) => {
     const confirmDelete = confirm(
@@ -83,7 +87,7 @@ export default function RegistrationPage() {
     });
   };
 
-  const baseColumns = registrationTableColumns(handleView, handleDelete);
+  const baseColumns = registrationTableColumns(handleView, handleEdit, handleDelete);
   
   const sortedColumns = baseColumns.map((col) => {
     if (col.key === 'action') return col;
@@ -96,7 +100,9 @@ export default function RegistrationPage() {
         <button
           type="button"
           onClick={() => handleSort(columnKey)}
-          className="flex items-center gap-1 font-semibold hover:text-gray-900 transition-colors"
+          className={`flex items-center gap-1 font-semibold hover:text-gray-900 transition-colors ${
+            col.key === 'email' ? 'w-full justify-center' : ''
+          }`}
         >
           <span>{col.label}</span>
           {sortConfig.key === columnKey ? (

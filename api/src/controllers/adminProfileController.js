@@ -268,3 +268,31 @@ exports.deleteCemetery = async (req, res) => {
     return res.status(500).json({ status: 'error', message: 'Delete failed' });
   }
 };
+
+// --- background music library -------------------------------------------------
+// Read-only for the customer side: returns the active tracks (is_active = TRUE)
+// so the Main Page dropdown can list them. mt_profile.music stores the chosen
+// `filename`. Global catalogue, so no memorial scope -- auth (verifyToken) only.
+exports.getBgmOptions = async (req, res) => {
+  const db = getConnection(process.env.DB_TYPE);
+  try {
+    const rows = await runQuery(
+      db,
+      `SELECT title, filename, artist
+         FROM mt_bgm
+        WHERE is_active = TRUE
+        ORDER BY sort_order ASC, title ASC`
+    );
+    return res.json(
+      (rows || []).map((r) => ({
+        title: r.title,
+        filename: r.filename,
+        artist: r.artist || '',
+        url: mediaUrl('music', r.filename), // /api/uploads/memorial/music/<filename>
+      }))
+    );
+  } catch (err) {
+    console.error('getBgmOptions error:', err);
+    return res.status(500).json({ message: 'Failed to load background music' });
+  }
+};

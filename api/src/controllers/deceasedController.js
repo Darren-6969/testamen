@@ -105,7 +105,7 @@ exports.updateDeceased = async (req, res, next) => {
     const query = `
       UPDATE mt_deceased
       SET ${setClauses.join(', ')}
-      WHERE id = ${paramIndex}
+      WHERE id = $${paramIndex}
     `;
 
     const db = getConnection(process.env.DB_TYPE);

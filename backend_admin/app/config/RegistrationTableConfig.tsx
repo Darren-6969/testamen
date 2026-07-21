@@ -1,5 +1,5 @@
 import { Column } from '@/components/table/DataTableWithColumnSearch';
-import { Eye, Trash } from 'lucide-react';
+import { Eye, Pencil, Trash } from 'lucide-react';
 import { Registration } from '../types';
 
 const formatDate = (value: string | null) => {
@@ -20,11 +20,13 @@ const formatDate = (value: string | null) => {
 
 export const registrationTableColumns = (
   handleView: (row: Registration) => void,
+  handleEdit: (row: Registration) => void,
   handleDelete: (row: Registration) => void
 ): Column<Registration>[] => [
   {
     key: 'id',
     label: 'NO',
+    width: '70px',
     position: 'middle',
     searchable: false,
     sortable: true,
@@ -35,6 +37,7 @@ export const registrationTableColumns = (
   {
     key: 'registration_date',
     label: 'REGISTRATION DATE',
+    width: '150px',
     position: 'middle',
     searchable: false,
     sortable: true,
@@ -47,6 +50,7 @@ export const registrationTableColumns = (
   {
     key: 'code_no',
     label: 'CODE NO.',
+    width: '140px',
     position: 'middle',
     sortable: true,
     sortFn: (a, b) =>
@@ -57,6 +61,7 @@ export const registrationTableColumns = (
   {
     key: 'username',
     label: 'USERNAME',
+    width: '150px',
     position: 'middle',
     sortable: true,
     sortFn: (a, b) =>
@@ -67,6 +72,7 @@ export const registrationTableColumns = (
   {
     key: 'registered_accounts',
     label: 'REGISTERED ACCOUNT(S)',
+    width: '110px',
     position: 'middle',
     sortable: true,
     sortFn: (a, b) =>
@@ -77,6 +83,7 @@ export const registrationTableColumns = (
   {
     key: 'contact',
     label: 'CONTACT',
+    width: '140px',
     position: 'middle',
     sortable: true,
     sortFn: (a, b) =>
@@ -97,6 +104,7 @@ export const registrationTableColumns = (
   {
     key: 'status',
     label: 'STATUS',
+    width: '110px',
     position: 'middle',
     sortable: true,
     sortFn: (a, b) => {
@@ -110,21 +118,28 @@ export const registrationTableColumns = (
     },
 
     render: (row) => {
-      const color =
-        row.status === 'Active'
-          ? 'text-green-600'
-          : row.status === 'Inactive'
-          ? 'text-red-600'
-          : 'text-yellow-600';
+      const status = row.status || 'Pending';
+      const styles =
+        status === 'Active'
+          ? 'bg-green-50 text-green-600'
+          : status === 'Inactive'
+          ? 'bg-red-50 text-red-600'
+          : 'bg-yellow-50 text-yellow-600';
 
-      return <span className={color}>{row.status}</span>;
+      return (
+        <span
+          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${styles}`}
+        >
+          {status}
+        </span>
+      );
     },
   },
 
   {
     key: 'action',
     label: 'ACTION',
-    width: '150px',
+    width: '190px',
     searchable: false,
     position: 'middle',
     sortable: false,
@@ -138,6 +153,15 @@ export const registrationTableColumns = (
         >
           <Eye className="h-4 w-4" />
           View
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleEdit(row)}
+          className="flex items-center gap-1 text-amber-600 hover:underline"
+        >
+          <Pencil className="h-4 w-4" />
+          Edit
         </button>
 
         <button
@@ -157,6 +181,12 @@ export const registrationTableColumns = (
         variant: 'outline',
         tooltip: 'View Registration',
         onClick: (row) => handleView(row),
+      },
+      {
+        icon: Pencil,
+        variant: 'outline',
+        tooltip: 'Edit Registration',
+        onClick: (row) => handleEdit(row),
       },
       {
         icon: Trash,

@@ -9,6 +9,21 @@ export interface Registration {
   status: 'Active' | 'Inactive' | 'Pending';
 }
 
+export interface RegistrationDetail extends Registration {
+  first_name?: string | null;
+  last_name?: string | null;
+  gender?: string | null;
+  phone_number?: string | null;
+  country_code?: string | null;
+}
+
+export type RegistrationUpdatePayload = Partial<
+  Pick<
+    RegistrationDetail,
+    'first_name' | 'last_name' | 'email' | 'gender' | 'phone_number' | 'country_code' | 'status'
+  >
+>;
+
 /**
  * Fetch all registrations
  */
@@ -38,7 +53,7 @@ export async function fetchRegistrations(): Promise<Registration[]> {
  */
 export async function fetchRegistrationById(
   id: number
-): Promise<Registration | null> {
+): Promise<RegistrationDetail | null> {
   try {
     const res = await fetch(`/api/registration/${id}`, {
       method: 'GET',
@@ -58,5 +73,40 @@ export async function fetchRegistrationById(
   } catch (error) {
     console.error('fetchRegistrationById error:', error);
     return null;
+  }
+}
+
+/**
+ * Update a registration's editable fields
+ */
+export async function updateRegistration(
+  id: number,
+  payload: RegistrationUpdatePayload
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch(`/api/registration/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      return {
+        success: false,
+        message: data?.message || 'Failed to update registration',
+      };
+    }
+
+    return {
+      success: true,
+      message: data?.message || 'Registration updated successfully.',
+    };
+  } catch (error) {
+    console.error('updateRegistration error:', error);
+    return { success: false, message: 'Failed to update registration' };
   }
 }

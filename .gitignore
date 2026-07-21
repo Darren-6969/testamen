@@ -7,7 +7,11 @@
 /backend_admin/.next
 /backend_customer/.next
 /landing_page/.next
-/api/uploads/memorial/
+/api/uploads/memorial/backgrounds/
+/api/uploads/memorial/cemetery/
+/api/uploads/memorial/photos/
+/api/uploads/memorial/videos/
+/api/uploads/memorial/profile/
 /api/uploads/customers/
 /api/uploads/obituary/images/
 /api/uploads/obituary/pdf/
