@@ -31,9 +31,6 @@ const formatDate = (value?: string | null) => {
   });
 };
 
-// NOTE: this points at the API's generic `/uploads` static mount
-// (see api/src/index.js). Confirm the actual subfolder obituary PDFs
-// are saved under and adjust this if it differs.
 const getUploadsUrl = (fileName: string) => {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
   const apiBase = apiUrl.endsWith('/api') ? apiUrl.slice(0, -4) : apiUrl;

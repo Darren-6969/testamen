@@ -8,7 +8,6 @@ export interface Obituary {
   mf_id: string;
   username: string;
 
-  // Detail-only fields, present when fetched via fetchObituaryById
   code_no?: string | null;
   md_content?: string | null;
   mf_img?: string | null;
@@ -73,10 +72,32 @@ export async function fetchObituaryById(id: number | string): Promise<Obituary |
 
     const data = await res.json();
 
-    // backend responds with { success, data }
     return data?.data ?? data ?? null;
   } catch (error) {
     console.error('fetchObituaryById error:', error);
     return null;
+  }
+}
+
+/**
+ * Soft-delete
+ */
+export async function deleteObituary(id: number | string): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/obituary/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error('Failed to delete obituary');
+    }
+
+    return true;
+  } catch (error) {
+    console.error('deleteObituary error:', error);
+    return false;
   }
 }

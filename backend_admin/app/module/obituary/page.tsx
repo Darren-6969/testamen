@@ -1,8 +1,8 @@
 'use client';
 
 import GenericTablePage from '@/components/generic/GenericTablePage';
-import { fetchObituaries} from '@/app/data/obituary';
-import { obituaryColumns, Obituary } from '@/app/config/ObituaryTableConfig'; // Imported Obituary interface
+import { fetchObituaries, deleteObituary } from '@/app/data/obituary';
+import { obituaryColumns, Obituary } from '@/app/config/ObituaryTableConfig';
 import { useRouter } from 'next/navigation';
 import PageHeader from '@/components/header/PageHeader';
 import { Feather } from 'lucide-react';
@@ -17,6 +17,21 @@ export default function ObituaryPage() {
     router.push(`/module/obituary/${row.id}`);
   };
 
+  const handleDelete = async (row: Obituary) => {
+    const confirmed = window.confirm(
+      `Delete the obituary for "${row.mf_fullname || 'this record'}"?`
+    );
+    if (!confirmed) return;
+
+    const success = await deleteObituary(row.id);
+    if (success) {
+      toast.success('Obituary deleted');
+      setReloadKey((prev) => prev + 1);
+    } else {
+      toast.error('Failed to delete obituary');
+    }
+  };
+
   return (
     <div className="space-y-1">
       <PageHeader
@@ -29,7 +44,7 @@ export default function ObituaryPage() {
       <GenericTablePage
         key={reloadKey}
         fetchData={fetchObituaries}
-        columns={obituaryColumns(handlePreview)}
+        columns={obituaryColumns(handlePreview, handleDelete)}
         config={{
           tableType: 'columnSearch',
           pageSize: 10,
