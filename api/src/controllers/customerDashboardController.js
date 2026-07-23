@@ -17,11 +17,31 @@
 //     endpoint already does the same lookup). So it resolves via mt_user_account,
 //     which the app treats as the display name (`username AS name`).
 //   - The owner's own uploads render as "You" rather than their own username.
+//
+// Card fields (photo, date of departure, place of rest):
+//   mt_profile is the source of truth. It is created with the memorial at
+//   registration and edited in Admin -> Main Page, so every memorial has one.
+//   mt_obituary is an optional artifact of the Obituary module and is kept only
+//   as a fallback for older memorials whose profile row predates those fields.
+//   Before this, the card read mt_obituary ONLY - so a memorial without an
+//   obituary showed a placeholder avatar and two em-dashes even when the profile
+//   held a picture and a passing date.
+//
+//   The two images live in different directories, so the query returns both
+//   filenames and the URL prefix is chosen per source when the row is mapped.
 
 const { getConnection, runQuery } = require('../db/connectionManager');
 
 // mt_tribute stores mf_date (date) + mf_time (time) instead of a timestamp.
 const TRIBUTE_TS = `(t.mf_date + COALESCE(t.mf_time, '00:00'::time))`;
+
+// Profile picture first, obituary portrait as fallback. The two are served from
+// different static roots, so the prefix cannot be applied after a COALESCE in SQL.
+const memorialPhotoUrl = (row) => {
+  if (row.profile_pic) return `/api/uploads/memorial/profile/${row.profile_pic}`;
+  if (row.mf_img) return `/api/uploads/obituary/images/${row.mf_img}`;
+  return null;
+};
 
 const nounFor = (type, count) => {
   const plural = count > 1;
@@ -57,6 +77,9 @@ exports.getOverview = async (req, res) => {
         d.memorial_name,
         d.url_name,
         d.status,
+        pr.profile_pic,
+        pr.pass_date  AS profile_pass_date,
+        pr.pass_location AS profile_pass_location,
         o.mf_img,
         o.mf_pass_date,
         o.mf_pass_location,
@@ -84,6 +107,19 @@ exports.getOverview = async (req, res) => {
          ORDER BY ob.id DESC
          LIMIT 1
       ) o ON TRUE
+      -- LATERAL ... LIMIT 1 for the same reason as the obituary join above, and
+      -- one more: mt_profile currently holds DUPLICATE rows for some memorials
+      -- (ids 201/202 both describe mt_deceased 67, 52/206 both describe 68) left
+      -- over from the memorial_id convention change. A plain LEFT JOIN would fan
+      -- those into two cards and inflate totalMemorials. Newest row wins.
+      LEFT JOIN LATERAL (
+        SELECT pf.profile_pic, pf.pass_date, pf.pass_location
+          FROM mt_profile pf
+         WHERE pf.memorial_id = d.number_list
+           AND pf.code_no = d.code_no
+         ORDER BY pf.id DESC
+         LIMIT 1
+      ) pr ON TRUE
       WHERE d.show = TRUE
         AND d.code_no = $1
       ORDER BY d.number_list ASC
@@ -96,9 +132,9 @@ exports.getOverview = async (req, res) => {
       name: row.memorial_name,
       urlName: row.url_name,
       status: row.status,
-      photoUrl: row.mf_img ? `/api/uploads/obituary/images/${row.mf_img}` : null,
-      dateOfDeparture: row.mf_pass_date,
-      placeOfRest: row.mf_pass_location,
+      photoUrl: memorialPhotoUrl(row),
+      dateOfDeparture: row.profile_pass_date || row.mf_pass_date || null,
+      placeOfRest: row.profile_pass_location || row.mf_pass_location || null,
       tributes: { count: Number(row.tribute_count || 0), latest: row.tribute_latest },
       photos: { count: Number(row.photo_count || 0), latest: row.photo_latest },
       videos: { count: Number(row.video_count || 0), latest: row.video_latest },
